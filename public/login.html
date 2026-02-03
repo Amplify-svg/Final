@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Particle Chat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body id="page-login" class="dark-mode">
+    <canvas id="particleCanvas"></canvas>
+
+    <div class="glass-panel centered-panel">
+        <h1>Particle Chat</h1>
+        <p>Please log in or register</p>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <div class="buttons">
+            <button onclick="login()">Log In</button>
+            <button onclick="register()">Create Account</button>
+        </div>
+        <p id="auth-error" class="error"></p>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="particles.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

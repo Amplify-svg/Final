@@ -2,65 +2,28 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Haptic Chat</title>
+    <title>Home - Particle Chat</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="dark-mode"> 
-    
+<body id="page-home" class="dark-mode">
     <canvas id="particleCanvas"></canvas>
 
-    <div id="login-screen" class="glass-panel centered-panel">
-        <h1>Particle Chat</h1>
-        <p>Click anywhere to enable haptics</p>
-        <input type="text" id="username" placeholder="Username">
-        <input type="password" id="password" placeholder="Password">
-        <div class="buttons">
-            <button onclick="login()">Log In</button>
-            <button onclick="register()">Create Account</button>
-        </div>
-        <p id="auth-error" class="error"></p>
-    </div>
-
-    <div id="chat-screen" class="hidden">
+    <div class="glass-panel centered-panel">
+        <h1>Welcome, <span id="display-name">User</span>!</h1>
+        <img id="display-pfp" class="profile-preview" src="" alt="Profile">
         
-        <div class="chat-main">
-            <div id="messages"></div>
+        <div class="home-menu">
+            <button onclick="window.location.href='chat.html'" class="big-btn">
+                <i class="fas fa-comments"></i> Enter Chat Room
+            </button>
             
-            <div class="typing-indicator" id="typing-indicator"></div>
-
-            <form id="chat-form">
-                <input type="text" id="msg-input" placeholder="Type a message..." autocomplete="off">
-                <button type="submit" id="send-btn"><i class="fas fa-paper-plane"></i></button>
-            </form>
-        </div>
-
-        <div class="chat-sidebar glass-panel">
-            <h3>Online</h3>
-            <ul id="online-users-list"></ul>
-        </div>
-
-        <button id="settings-btn" onclick="toggleSettings()"><i class="fas fa-cog"></i></button>
-    </div>
-
-    <div id="settings-modal" class="hidden glass-panel centered-panel">
-        <h2>Profile Settings</h2>
-        <div class="settings-form">
-            <label>Change Username</label>
-            <input type="text" id="set-new-username">
-            
-            <label>Change Password</label>
-            <input type="password" id="set-new-password">
-            
-            <label>Profile Picture (URL)</label>
-            <input type="text" id="set-new-pfp" placeholder="https://example.com/image.png">
-            
-            <div class="buttons">
-                <button onclick="saveSettings()">Save Changes</button>
-                <button onclick="toggleSettings()" style="background:#555">Cancel</button>
-                <button onclick="logout()" class="logout-btn">Log Out</button>
+            <div class="online-status-box">
+                <h3>Online Members</h3>
+                <ul id="online-users-list"></ul>
             </div>
+
+            <button onclick="logout()" class="logout-btn">Log Out</button>
         </div>
     </div>
 
