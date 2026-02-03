@@ -3,136 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Community Chat</title>
-    
-    <style>
-        /* CSS: This makes the app look clean */
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            height: 100vh; 
-            background-color: #f0f2f5;
-        }
-
-        #messages { 
-            list-style-type: none; 
-            margin: 0; 
-            padding: 20px; 
-            flex-grow: 1; 
-            overflow-y: auto; 
-        }
-
-        #messages li { 
-            padding: 10px 15px; 
-            background: white;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-            max-width: 80%;
-            word-wrap: break-word;
-        }
-
-        .timestamp { 
-            font-size: 0.7em; 
-            color: #888; 
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        .username { 
-            font-weight: bold; 
-            color: #007bff; 
-            margin-right: 5px;
-        }
-
-        #form { 
-            background: white; 
-            padding: 15px; 
-            display: flex; 
-            border-top: 1px solid #ddd;
-        }
-
-        #input { 
-            border: 1px solid #ddd; 
-            padding: 10px; 
-            flex-grow: 1; 
-            border-radius: 20px; 
-            outline: none;
-            font-size: 16px;
-        }
-
-        button { 
-            background: #007bff; 
-            border: none; 
-            padding: 0 20px; 
-            margin-left: 10px; 
-            border-radius: 20px; 
-            color: white; 
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        button:hover { background: #0056b3; }
-    </style>
+    <title>Nexus - Chat</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <canvas id="particleCanvas"></canvas>
+    <script src="global.js"></script>
 
-    <ul id="messages"></ul>
-    
-    <form id="form">
-        <input id="input" autocomplete="off" placeholder="Type a message..." />
-        <button>Send</button>
-    </form>
+    <div id="uploadProgressContainer"><div id="uploadProgressBar"></div></div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <div id="mediaModal">
+        <div class="close-btn" onclick="closeMediaModal()">&times;</div>
+        <img id="modalImg" alt="Expanded" style="display:none;">
+        <video id="modalVideo" controls style="display:none;"></video>
+    </div>
 
-    <script>
-        const socket = io({ transports: ['websocket'] });
+    <div id="profileCardModal" onclick="closeProfileCard()">
+        <div class="profile-card" onclick="event.stopPropagation()">
+            <div class="card-header"></div>
+            <img id="cardPfp" src="" class="card-pfp">
+            <div class="card-content">
+                <div id="cardName" class="card-name">Username</div>
+                <div id="cardEmail" style="font-size: 12px; color: #888;"></div>
+                <p id="cardBio" class="card-bio">"No bio yet."</p>
+            </div>
+        </div>
+    </div>
 
-        // Ask for username when they join
-        let username = prompt("What is your name?") || "Anonymous";
+    <div id="topActions">
+        <button id="adminClearBtn" onclick="clearChat()" style="display:none; background:#ea4335;">CLEAR CHAT</button>
+        <button onclick="toggleMemberList()" style="background:#4285f4;">👥 MEMBERS</button>
+    </div>
 
-        const form = document.getElementById('form');
-        const input = document.getElementById('input');
-        const messages = document.getElementById('messages');
+    <div id="chatBox"></div>
+    <div id="typingIndicator"></div>
 
-        // Function to create a message bubble
-        function addMessageToUI(data) {
-            const item = document.createElement('li');
-            item.innerHTML = `
-                <span class="timestamp">${data.time}</span>
-                <span class="username">${data.user}:</span> 
-                <span>${data.text}</span>
-            `;
-            messages.appendChild(item);
-            // Auto-scroll to the bottom
-            messages.scrollTop = messages.scrollHeight;
-        }
+    <div id="messageInputBox">
+        <label for="fileInput" style="cursor:pointer; font-size:24px; color: #4285f4;">📷</label>
+        <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
+        <input id="messageInput" type="text" placeholder="Type a message..." autocomplete="off">
+        <button id="sendBtn">Send</button>
+    </div>
 
-        // When you send a message
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (input.value) {
-                socket.emit('chat message', {
-                    user: username,
-                    text: input.value
-                });
-                input.value = '';
-            }
-        });
-
-        // When the server sends the past 50 messages (History)
-        socket.on('load history', (history) => {
-            messages.innerHTML = ''; 
-            history.forEach(msg => addMessageToUI(msg));
-        });
-
-        // When a new message arrives from someone else
-        socket.on('chat message', (data) => {
-            addMessageToUI(data);
-        });
-    </script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>

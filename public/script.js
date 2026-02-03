@@ -1,39 +1,36 @@
-const socket = io({ transports: ['websocket'] });
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-// --- NEW: Username Setup ---
-let username = prompt("What is your name?") || "Anonymous";
+const firebaseConfig = {
+    apiKey: "AIzaSyCN8ypq4TxhLwjseqnDJneBO2j_BlARz0M",
+    authDomain: "chat-or-somethig.firebaseapp.com",
+    databaseURL: "https://chat-or-somethig-default-rtdb.firebaseio.com",
+    projectId: "chat-or-somethig"
+};
 
-const form = document.getElementById('form');
-const input = document.getElementById('input');
-const messages = document.getElementById('messages');
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
 
-// Helper function to show a message on screen
-function addMessageToUI(data) {
-    const item = document.createElement('li');
-    // Styling the message: "Time | Name: Message"
-    item.innerHTML = `<small style="color: gray;">${data.time}</small> <b>${data.user}:</b> ${data.text}`;
-    messages.appendChild(item);
-    messages.scrollTop = messages.scrollHeight;
-}
-
-form.addEventListener('submit', (e) => {
-    e.preventDefault();
+// Make function accessible to HTML button
+window.sendMessage = () => {
+    const input = document.getElementById('messageInput');
     if (input.value) {
-        // Send an OBJECT instead of just text
-        socket.emit('chat message', {
-            user: username,
-            text: input.value
+        push(ref(database, 'messages'), {
+            text: input.value,
+            username: "Nexus User", // You can replace with auth logic
+            timestamp: Date.now()
         });
         input.value = '';
     }
-});
+};
 
-// --- NEW: Listen for History ---
-socket.on('load history', (history) => {
-    messages.innerHTML = ''; // Clear current view
-    history.forEach(msg => addMessageToUI(msg));
-});
-
-socket.on('chat message', (data) => {
-    addMessageToUI(data);
+// Listen for messages and render them
+onChildAdded(ref(database, 'messages'), (snapshot) => {
+    const msg = snapshot.val();
+    const chatBox = document.getElementById('chatBox');
+    const div = document.createElement('div');
+    div.className = 'message-container other'; // Simplified for now
+    div.innerHTML = `<div class="message-bubble">${msg.text}</div>`;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
 });
