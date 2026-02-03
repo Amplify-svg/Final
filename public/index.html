@@ -4,48 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus - Chat</title>
-    <link rel="icon" type="image/png" href="icon.png">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="dark-mode">
     <canvas id="particleCanvas"></canvas>
-    <script src="global.js"></script>
 
-    <div id="uploadProgressContainer"><div id="uploadProgressBar"></div></div>
+    <header class="header">
+        <div class="hamburger" onclick="toggleSidebar()">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="user-info">
+            <span id="headerUserName">Guest</span>
+            <div class="avatar" id="userAvatar">?</div>
+        </div>
+    </header>
 
-    <div id="mediaModal">
-        <div class="close-btn" onclick="closeMediaModal()">&times;</div>
-        <img id="modalImg" alt="Expanded" style="display:none;">
-        <video id="modalVideo" controls style="display:none;"></video>
-    </div>
-
-    <div id="profileCardModal" onclick="closeProfileCard()">
-        <div class="profile-card" onclick="event.stopPropagation()">
-            <div class="card-header"></div>
-            <img id="cardPfp" src="" class="card-pfp">
-            <div class="card-content">
-                <div id="cardName" class="card-name">Username</div>
-                <div id="cardEmail" style="font-size: 12px; color: #888;"></div>
-                <p id="cardBio" class="card-bio">"No bio yet."</p>
-            </div>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">NEXUS</div>
+        <nav class="nav-items">
+            <a href="#" class="nav-item">💬 Global Chat</a>
+            <a href="#" class="nav-item" onclick="toggleDarkMode()">🌓 Toggle Theme</a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="footer-btn logout-btn" onclick="location.reload()">Reset</button>
         </div>
     </div>
 
-    <div id="topActions">
-        <button id="adminClearBtn" onclick="clearChat()" style="display:none; background:#ea4335;">CLEAR CHAT</button>
-        <button onclick="toggleMemberList()" style="background:#4285f4;">👥 MEMBERS</button>
-    </div>
+    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
 
-    <div id="chatBox"></div>
-    <div id="typingIndicator"></div>
+    <main id="chatContainer">
+        <div id="chatBox"></div>
+        <div id="typingIndicator"></div>
+        
+        <form id="messageInputBox">
+            <input id="messageInput" type="text" placeholder="Type a message..." autocomplete="off">
+            <button type="submit" class="primary">Send</button>
+        </form>
+    </main>
 
-    <div id="messageInputBox">
-        <label for="fileInput" style="cursor:pointer; font-size:24px; color: #4285f4;">📷</label>
-        <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
-        <input id="messageInput" type="text" placeholder="Type a message..." autocomplete="off">
-        <button id="sendBtn">Send</button>
-    </div>
-
-    <script type="module" src="script.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
