@@ -3,89 +3,155 @@ const socket = io();
 // DOM Elements
 const loginScreen = document.getElementById('login-screen');
 const chatScreen = document.getElementById('chat-screen');
+const settingsModal = document.getElementById('settings-modal');
 const authError = document.getElementById('auth-error');
-const userDisplay = document.getElementById('current-user-display');
 const messagesDiv = document.getElementById('messages');
 const chatForm = document.getElementById('chat-form');
 const msgInput = document.getElementById('msg-input');
+const onlineList = document.getElementById('online-users-list');
+const typingDiv = document.getElementById('typing-indicator');
+
+// Settings Inputs
+const newUsernameInput = document.getElementById('set-new-username');
+const newPasswordInput = document.getElementById('set-new-password');
+const newPfpInput = document.getElementById('set-new-pfp');
 
 let myUsername = null;
+let myPfp = null;
+let typingTimeout = undefined;
 
-// --- 1. Auto-Login Logic ---
-// Runs immediately when page loads
+// --- Auto-Login ---
 const savedUser = localStorage.getItem('chatUser');
 if (savedUser) {
     const creds = JSON.parse(savedUser);
-    socket.emit('login', creds); // Try logging in automatically
+    socket.emit('login', creds);
 }
 
 // --- Auth Functions ---
 function getCredentials() {
-    const u = document.getElementById('username').value.trim();
-    const p = document.getElementById('password').value.trim();
-    return { username: u, password: p };
+    return {
+        username: document.getElementById('username').value.trim(),
+        password: document.getElementById('password').value.trim()
+    };
 }
 
 function register() {
     const creds = getCredentials();
-    if (!creds.username || !creds.password) return alert("Fill in both fields");
-    socket.emit('register', creds);
+    if (creds.username && creds.password) socket.emit('register', creds);
 }
 
 function login() {
     const creds = getCredentials();
-    if (!creds.username || !creds.password) return alert("Fill in both fields");
-    socket.emit('login', creds);
+    if (creds.username && creds.password) socket.emit('login', creds);
 }
 
 function logout() {
-    localStorage.removeItem('chatUser'); // Clear saved data
-    location.reload(); // Refresh page
+    localStorage.removeItem('chatUser');
+    location.reload();
 }
 
-// --- Socket Listeners (Auth) ---
-socket.on('registerResponse', (data) => {
+// --- Settings Logic ---
+function toggleSettings() {
+    settingsModal.classList.toggle('hidden');
+    // Pre-fill current values
+    if (!settingsModal.classList.contains('hidden')) {
+        newUsernameInput.value = myUsername;
+        newPfpInput.value = myPfp;
+    }
+}
+
+function saveSettings() {
+    const data = {
+        newUsername: newUsernameInput.value.trim(),
+        newPassword: newPasswordInput.value.trim(), // Optional
+        newPfp: newPfpInput.value.trim() // Optional
+    };
+    
+    if (data.newUsername) {
+        socket.emit('updateProfile', data);
+    }
+}
+
+socket.on('updateProfileResponse', (data) => {
     if (data.success) {
-        handleSuccessfulLogin(data.username);
+        myUsername = data.username;
+        myPfp = data.pfp;
+        
+        // Update LocalStorage (keep password if not changed)
+        const oldStore = JSON.parse(localStorage.getItem('chatUser'));
+        const newPass = newPasswordInput.value.trim() || oldStore.password;
+        
+        localStorage.setItem('chatUser', JSON.stringify({
+            username: myUsername,
+            password: newPass
+        }));
+
+        alert('Profile Updated!');
+        toggleSettings();
     } else {
-        authError.innerText = data.message;
+        alert('Error: ' + data.message);
     }
 });
 
-socket.on('loginResponse', (data) => {
+
+// --- Socket Listeners (Auth) ---
+socket.on('registerResponse', (data) => handleAuthResponse(data));
+socket.on('loginResponse', (data) => handleAuthResponse(data));
+
+function handleAuthResponse(data) {
     if (data.success) {
-        handleSuccessfulLogin(data.username);
+        myUsername = data.username;
+        myPfp = data.pfp;
+        
+        const pass = document.getElementById('password').value;
+        if(pass) {
+            localStorage.setItem('chatUser', JSON.stringify({ username: myUsername, password: pass }));
+        }
+
+        loginScreen.classList.add('hidden');
+        chatScreen.classList.remove('hidden');
+        
+        // Trigger a resize for particles to fill the new layout
+        window.dispatchEvent(new Event('resize')); 
     } else {
-        // If auto-login fails, clear it so user can try again
         localStorage.removeItem('chatUser');
         authError.innerText = data.message;
     }
-});
-
-function handleSuccessfulLogin(username) {
-    myUsername = username;
-    
-    // Save to LocalStorage for next time
-    const pass = document.getElementById('password').value;
-    // Note: If this was auto-login, pass input might be empty, so check savedUser
-    if(pass) {
-        localStorage.setItem('chatUser', JSON.stringify({ username: username, password: pass }));
-    }
-
-    loginScreen.classList.add('hidden');
-    chatScreen.classList.remove('hidden');
-    userDisplay.innerText = username;
 }
 
-// --- Chat Logic ---
+// --- Online Users ---
+socket.on('updateUserList', (users) => {
+    onlineList.innerHTML = '';
+    users.forEach(user => {
+        const li = document.createElement('li');
+        li.innerText = user === myUsername ? `${user} (You)` : user;
+        onlineList.appendChild(li);
+    });
+});
 
+// --- Typing Indicator ---
+msgInput.addEventListener('input', () => {
+    socket.emit('typing');
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        socket.emit('stopTyping');
+    }, 1000); // Stop after 1 second of no typing
+});
+
+socket.on('userTyping', (user) => {
+    typingDiv.innerText = `${user} is typing...`;
+});
+
+socket.on('userStoppedTyping', (user) => {
+    typingDiv.innerText = '';
+});
+
+// --- Chat Logic ---
 function formatTimeCentral(isoString) {
     const date = new Date(isoString);
     return date.toLocaleTimeString('en-US', {
-        timeZone: 'America/Chicago', // Central Time Zone
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
+        timeZone: 'America/Chicago',
+        hour: 'numeric', minute: '2-digit', hour12: true
     });
 }
 
@@ -94,31 +160,38 @@ chatForm.addEventListener('submit', (e) => {
     if (msgInput.value) {
         socket.emit('chatMessage', msgInput.value);
         msgInput.value = '';
+        socket.emit('stopTyping');
     }
 });
 
-// Render a single message
 function appendMessage(data) {
     const div = document.createElement('div');
-    div.classList.add('message');
-    div.id = `msg-${data.id}`; // ID for deletion
+    div.id = `msg-${data.id}`;
     
-    const timeStr = formatTimeCentral(data.timestamp);
-
     if (data.user === 'System') {
-        div.classList.add('system-msg');
-        div.innerHTML = `<span class="timestamp">[${timeStr}]</span> ${data.text}`;
+        div.classList.add('message', 'system-msg');
+        div.innerText = data.text;
     } else {
-        // Show delete button ONLY if I wrote this message
+        div.classList.add('message');
+        
+        // Determine PFP (use default if null)
+        const pfpUrl = data.pfp || 'https://i.pravatar.cc/150';
+        
+        // Delete button logic
         let deleteBtnHTML = '';
         if (data.user === myUsername) {
-            deleteBtnHTML = `<span class="delete-btn" onclick="deleteMsg('${data.id}')" title="Delete">🗑️</span>`;
+            deleteBtnHTML = `<span class="delete-btn" onclick="deleteMsg('${data.id}')"><i class="fas fa-trash"></i></span>`;
         }
 
         div.innerHTML = `
-            <span class="timestamp">[${timeStr}]</span> 
-            <strong>${data.user}:</strong> 
-            <span class="msg-text">${data.text}</span>
+            <img src="${pfpUrl}" class="msg-pfp" alt="pfp">
+            <div class="msg-content">
+                <div>
+                    <strong style="color:#8ab4f8">${data.user}</strong>
+                    <span class="timestamp">${formatTimeCentral(data.timestamp)}</span>
+                </div>
+                <div class="msg-text">${data.text}</div>
+            </div>
             ${deleteBtnHTML}
         `;
     }
@@ -127,26 +200,18 @@ function appendMessage(data) {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// --- Socket Listeners (Chat) ---
-
-// Load history upon connection
 socket.on('loadHistory', (history) => {
     messagesDiv.innerHTML = '';
     history.forEach(msg => appendMessage(msg));
 });
 
-// New incoming message
-socket.on('message', (data) => {
-    appendMessage(data);
-});
+socket.on('message', (data) => appendMessage(data));
 
-// A message was deleted
 socket.on('messageDeleted', (id) => {
     const el = document.getElementById(`msg-${id}`);
     if (el) el.remove();
 });
 
-// Triggered by the trash icon
 window.deleteMsg = function(id) {
     if(confirm("Delete this message?")) {
         socket.emit('deleteMessage', id);

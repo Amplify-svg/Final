@@ -5,34 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Haptic Chat</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="dark-mode"> 
     
     <canvas id="particleCanvas"></canvas>
 
-    <div class="container">
-        <div id="login-screen">
-            <h1>Particle Chat</h1>
-            <p>Click anywhere to enable haptics</p>
-            <input type="text" id="username" placeholder="Username">
-            <input type="password" id="password" placeholder="Password">
-            <div class="buttons">
-                <button onclick="login()">Log In</button>
-                <button onclick="register()">Create Account</button>
-            </div>
-            <p id="auth-error" class="error"></p>
+    <div id="login-screen" class="glass-panel centered-panel">
+        <h1>Particle Chat</h1>
+        <p>Click anywhere to enable haptics</p>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <div class="buttons">
+            <button onclick="login()">Log In</button>
+            <button onclick="register()">Create Account</button>
         </div>
+        <p id="auth-error" class="error"></p>
+    </div>
 
-        <div id="chat-screen" class="hidden">
-            <div id="chat-header">
-                <span>User: <strong id="current-user-display"></strong></span>
-                <button onclick="logout()" class="logout-btn">Log Out</button>
-            </div>
+    <div id="chat-screen" class="hidden">
+        
+        <div class="chat-main">
             <div id="messages"></div>
+            
+            <div class="typing-indicator" id="typing-indicator"></div>
+
             <form id="chat-form">
                 <input type="text" id="msg-input" placeholder="Type a message..." autocomplete="off">
-                <button type="submit">Send</button>
+                <button type="submit" id="send-btn"><i class="fas fa-paper-plane"></i></button>
             </form>
+        </div>
+
+        <div class="chat-sidebar glass-panel">
+            <h3>Online</h3>
+            <ul id="online-users-list"></ul>
+        </div>
+
+        <button id="settings-btn" onclick="toggleSettings()"><i class="fas fa-cog"></i></button>
+    </div>
+
+    <div id="settings-modal" class="hidden glass-panel centered-panel">
+        <h2>Profile Settings</h2>
+        <div class="settings-form">
+            <label>Change Username</label>
+            <input type="text" id="set-new-username">
+            
+            <label>Change Password</label>
+            <input type="password" id="set-new-password">
+            
+            <label>Profile Picture (URL)</label>
+            <input type="text" id="set-new-pfp" placeholder="https://example.com/image.png">
+            
+            <div class="buttons">
+                <button onclick="saveSettings()">Save Changes</button>
+                <button onclick="toggleSettings()" style="background:#555">Cancel</button>
+                <button onclick="logout()" class="logout-btn">Log Out</button>
+            </div>
         </div>
     </div>
 
