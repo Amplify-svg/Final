@@ -3,46 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus - Chat</title>
+    <title>Haptic Chat</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="dark-mode">
-    <canvas id="particleCanvas"></canvas>
+<body class="dark-mode"> <canvas id="particleCanvas"></canvas>
 
-    <header class="header">
-        <div class="hamburger" onclick="toggleSidebar()">
-            <span></span><span></span><span></span>
+    <div class="container">
+        <div id="login-screen">
+            <h1>Particle Chat</h1>
+            <p>Click anywhere to enable haptics</p>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <div class="buttons">
+                <button onclick="login()">Log In</button>
+                <button onclick="register()">Create Account</button>
+            </div>
+            <p id="auth-error" class="error"></p>
         </div>
-        <div class="user-info">
-            <span id="headerUserName">Guest</span>
-            <div class="avatar" id="userAvatar">?</div>
-        </div>
-    </header>
 
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">NEXUS</div>
-        <nav class="nav-items">
-            <a href="#" class="nav-item">💬 Global Chat</a>
-            <a href="#" class="nav-item" onclick="toggleDarkMode()">🌓 Toggle Theme</a>
-        </nav>
-        <div class="sidebar-footer">
-            <button class="footer-btn logout-btn" onclick="location.reload()">Reset</button>
+        <div id="chat-screen" class="hidden">
+            <div id="chat-header">
+                Logged in as: <span id="current-user-display"></span>
+            </div>
+            <div id="messages"></div>
+            <form id="chat-form">
+                <input type="text" id="msg-input" placeholder="Type a message..." autocomplete="off">
+                <button type="submit">Send</button>
+            </form>
         </div>
     </div>
 
-    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-    <main id="chatContainer">
-        <div id="chatBox"></div>
-        <div id="typingIndicator"></div>
-        
-        <form id="messageInputBox">
-            <input id="messageInput" type="text" placeholder="Type a message..." autocomplete="off">
-            <button type="submit" class="primary">Send</button>
-        </form>
-    </main>
-
     <script src="/socket.io/socket.io.js"></script>
+    <script src="particles.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

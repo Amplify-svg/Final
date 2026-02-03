@@ -1,58 +1,77 @@
+// public/script.js
 const socket = io();
 
-// UI Elements
-const sidebar = document.getElementById('sidebar');
-const overlay = document.getElementById('overlay');
-const chatBox = document.getElementById('chatBox');
-const messageForm = document.getElementById('messageInputBox');
-const messageInput = document.getElementById('messageInput');
+// DOM Elements
+const loginScreen = document.getElementById('login-screen');
+const chatScreen = document.getElementById('chat-screen');
+const authError = document.getElementById('auth-error');
+const userDisplay = document.getElementById('current-user-display');
+const messagesDiv = document.getElementById('messages');
+const chatForm = document.getElementById('chat-form');
+const msgInput = document.getElementById('msg-input');
 
-// 1. Setup Identity
-const username = prompt("Enter your Nexus Handle:") || "Guest";
-document.getElementById('headerUserName').innerText = username;
-document.getElementById('userAvatar').innerText = username.charAt(0).toUpperCase();
-
-// 2. UI Functions
-window.toggleSidebar = () => {
-    sidebar.classList.toggle('open');
-    overlay.classList.toggle('active');
-};
-
-window.toggleDarkMode = () => {
-    document.body.classList.toggle('dark-mode');
-};
-
-// 3. Chat Logic
-function appendMessage(data) {
-    const isOwn = data.user === username;
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `msg-bubble ${isOwn ? 'msg-own' : 'msg-other'}`;
-    
-    msgDiv.innerHTML = `
-        <div style="font-size: 10px; margin-bottom: 4px; opacity: 0.7;">${data.user} • ${data.time}</div>
-        <div>${data.text}</div>
-    `;
-    
-    chatBox.appendChild(msgDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
+// --- Auth Functions ---
+function getCredentials() {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value.trim();
+    return { username: u, password: p };
 }
 
-messageForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (messageInput.value.trim()) {
-        socket.emit('chat message', {
-            user: username,
-            text: messageInput.value
-        });
-        messageInput.value = '';
+function register() {
+    const creds = getCredentials();
+    if (!creds.username || !creds.password) return alert("Please fill in both fields");
+    socket.emit('register', creds);
+}
+
+function login() {
+    const creds = getCredentials();
+    if (!creds.username || !creds.password) return alert("Please fill in both fields");
+    socket.emit('login', creds);
+}
+
+// --- Socket Listeners (Auth) ---
+socket.on('registerResponse', (data) => {
+    if (data.success) {
+        authError.style.color = 'lightgreen';
+        authError.innerText = data.message;
+    } else {
+        authError.style.color = '#ff6b6b';
+        authError.innerText = data.message;
     }
 });
 
-// Listen for history and new messages
-socket.on('load history', (history) => {
-    history.forEach(msg => appendMessage(msg));
+socket.on('loginResponse', (data) => {
+    if (data.success) {
+        // Switch screens
+        loginScreen.classList.add('hidden');
+        chatScreen.classList.remove('hidden');
+        userDisplay.innerText = data.username;
+    } else {
+        authError.style.color = '#ff6b6b';
+        authError.innerText = data.message;
+    }
 });
 
-socket.on('chat message', (data) => {
-    appendMessage(data);
+// --- Chat Logic ---
+chatForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (msgInput.value) {
+        socket.emit('chatMessage', msgInput.value);
+        msgInput.value = '';
+    }
+});
+
+socket.on('message', (data) => {
+    const div = document.createElement('div');
+    div.classList.add('message');
+    
+    if (data.user === 'System') {
+        div.classList.add('system-msg');
+        div.innerText = data.text;
+    } else {
+        div.innerHTML = `<strong>${data.user}:</strong> ${data.text}`;
+    }
+    
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto scroll to bottom
 });

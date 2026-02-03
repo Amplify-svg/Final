@@ -1,41 +1,72 @@
-/* --- NEXUS MASTER STYLES --- */
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { 
-    font-family: 'Segoe UI', Arial, sans-serif; background: #ffffff; color: #333;
-    transition: background 0.3s, color 0.3s; overflow: hidden; min-height: 100vh;
+body {
+    margin: 0;
+    overflow: hidden; /* Prevent scrollbars from canvas */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #111; /* Dark background for particles */
+    color: white;
 }
-body.dark-mode { background: #0a0a0a; color: #eee; }
 
-/* Header & Sidebar */
-.header { 
-    position: fixed; top: 0; left: 0; width: 100%; height: 60px; 
-    background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);
-    display: flex; align-items: center; padding: 0 20px; z-index: 1000; 
+#particleCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1; /* Puts canvas behind everything */
 }
-body.dark-mode .header { background: rgba(20, 20, 20, 0.9); border-bottom: 1px solid #333; }
 
-.hamburger { width: 30px; height: 20px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; }
-.hamburger span { width: 100%; height: 3px; background: #333; border-radius: 2px; }
-body.dark-mode .hamburger span { background: #eee; }
+.container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 400px;
+}
 
-.sidebar { position: fixed; top: 0; left: -280px; width: 280px; height: 100vh; background: white; z-index: 2000; transition: 0.4s; display: flex; flex-direction: column; }
-.sidebar.open { left: 0; }
-body.dark-mode .sidebar { background: #1a1a1a; }
+/* Glassmorphism Card Style */
+#login-screen, #chat-screen {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 2rem;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    text-align: center;
+}
 
-.avatar { width: 38px; height: 38px; border-radius: 50%; background: #4285f4; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+.hidden { display: none; }
+
+input {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+button {
+    padding: 10px 20px;
+    cursor: pointer;
+    background: #4285f4;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+button:hover { background: #3367d6; }
 
 /* Chat Specifics */
-#chatContainer { margin-top: 60px; height: calc(100vh - 60px); display: flex; flex-direction: column; }
-#chatBox { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-#messageInputBox { padding: 20px; display: flex; gap: 10px; background: rgba(255,255,255,0.05); }
-
-.msg-bubble { 
-    padding: 10px 15px; border-radius: 15px; max-width: 70%; position: relative;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1); word-wrap: break-word;
+#messages {
+    height: 300px;
+    overflow-y: auto;
+    text-align: left;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
 }
-.msg-own { align-self: flex-end; background: #4285f4; color: white; border-bottom-right-radius: 2px; }
-.msg-other { align-self: flex-start; background: #252525; color: white; border-bottom-left-radius: 2px; }
 
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); opacity: 0; pointer-events: none; transition: 0.3s; z-index: 1500; }
-.overlay.active { opacity: 1; pointer-events: all; }
-button.primary { background: #4285f4; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+.message { margin: 5px 0; font-size: 0.9rem; }
+.message strong { color: #8ab4f8; }
+.system-msg { color: #aaa; font-style: italic; }
+
+.error { color: #ff6b6b; font-size: 0.9rem; margin-top: 10px; }
