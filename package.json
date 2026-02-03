@@ -21,6 +21,7 @@
   "homepage": "https://github.com/Amplify-svg/Final#readme",
   "dependencies": {
     "express": "^5.2.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "uuid": "^13.0.0"
   }
 }

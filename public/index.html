@@ -6,7 +6,9 @@
     <title>Haptic Chat</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="dark-mode"> <canvas id="particleCanvas"></canvas>
+<body class="dark-mode"> 
+    
+    <canvas id="particleCanvas"></canvas>
 
     <div class="container">
         <div id="login-screen">
@@ -23,7 +25,8 @@
 
         <div id="chat-screen" class="hidden">
             <div id="chat-header">
-                Logged in as: <span id="current-user-display"></span>
+                <span>User: <strong id="current-user-display"></strong></span>
+                <button onclick="logout()" class="logout-btn">Log Out</button>
             </div>
             <div id="messages"></div>
             <form id="chat-form">

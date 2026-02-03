@@ -70,3 +70,49 @@ button:hover { background: #3367d6; }
 .system-msg { color: #aaa; font-style: italic; }
 
 .error { color: #ff6b6b; font-size: 0.9rem; margin-top: 10px; }
+
+/* Add to your existing CSS */
+
+/* Header Layout */
+#chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+/* Logout Button */
+.logout-btn {
+    background: #ff4757;
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+}
+.logout-btn:hover { background: #ff6b81; }
+
+/* Message Elements */
+.timestamp {
+    font-size: 0.75rem;
+    color: #888;
+    margin-right: 6px;
+    font-family: monospace;
+}
+
+.delete-btn {
+    cursor: pointer;
+    margin-left: 10px;
+    font-size: 0.9rem;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.delete-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.msg-text {
+    word-break: break-word;
+}
