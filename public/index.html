@@ -1,21 +1,138 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Codespaces Chat</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Community Chat</title>
+    
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; height: 90vh; }
-        #messages { list-style: none; flex-grow: 1; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
-        #form { display: flex; padding: 10px; }
-        #input { flex-grow: 1; padding: 10px; }
+        /* CSS: This makes the app look clean */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            background-color: #f0f2f5;
+        }
+
+        #messages { 
+            list-style-type: none; 
+            margin: 0; 
+            padding: 20px; 
+            flex-grow: 1; 
+            overflow-y: auto; 
+        }
+
+        #messages li { 
+            padding: 10px 15px; 
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .timestamp { 
+            font-size: 0.7em; 
+            color: #888; 
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .username { 
+            font-weight: bold; 
+            color: #007bff; 
+            margin-right: 5px;
+        }
+
+        #form { 
+            background: white; 
+            padding: 15px; 
+            display: flex; 
+            border-top: 1px solid #ddd;
+        }
+
+        #input { 
+            border: 1px solid #ddd; 
+            padding: 10px; 
+            flex-grow: 1; 
+            border-radius: 20px; 
+            outline: none;
+            font-size: 16px;
+        }
+
+        button { 
+            background: #007bff; 
+            border: none; 
+            padding: 0 20px; 
+            margin-left: 10px; 
+            border-radius: 20px; 
+            color: white; 
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover { background: #0056b3; }
     </style>
 </head>
 <body>
+
     <ul id="messages"></ul>
+    
     <form id="form">
-        <input id="input" autocomplete="off" placeholder="Type a message..." /><button>Send</button>
+        <input id="input" autocomplete="off" placeholder="Type a message..." />
+        <button>Send</button>
     </form>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js"></script>
+
+    <script>
+        const socket = io({ transports: ['websocket'] });
+
+        // Ask for username when they join
+        let username = prompt("What is your name?") || "Anonymous";
+
+        const form = document.getElementById('form');
+        const input = document.getElementById('input');
+        const messages = document.getElementById('messages');
+
+        // Function to create a message bubble
+        function addMessageToUI(data) {
+            const item = document.createElement('li');
+            item.innerHTML = `
+                <span class="timestamp">${data.time}</span>
+                <span class="username">${data.user}:</span> 
+                <span>${data.text}</span>
+            `;
+            messages.appendChild(item);
+            // Auto-scroll to the bottom
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        // When you send a message
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (input.value) {
+                socket.emit('chat message', {
+                    user: username,
+                    text: input.value
+                });
+                input.value = '';
+            }
+        });
+
+        // When the server sends the past 50 messages (History)
+        socket.on('load history', (history) => {
+            messages.innerHTML = ''; 
+            history.forEach(msg => addMessageToUI(msg));
+        });
+
+        // When a new message arrives from someone else
+        socket.on('chat message', (data) => {
+            addMessageToUI(data);
+        });
+    </script>
 </body>
 </html>

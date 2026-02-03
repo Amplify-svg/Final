@@ -5,26 +5,38 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    transports: ['websocket'] // Required for stable Render connections
+});
 
-// Serve the static files from the 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
+// --- NEW: History Storage ---
+let messageHistory = []; 
+const MAX_HISTORY = 50; // Keep the last 50 messages so the server doesn't get slow
+
 io.on('connection', (socket) => {
-    console.log('A user connected: ' + socket.id);
+    console.log('User connected');
 
-    // Listen for "chat message" from a client
-    socket.on('chat message', (msg) => {
-        // Send the message to EVERYONE connected
-        io.emit('chat message', msg);
-    });
+    // --- NEW: Send history to the new user immediately ---
+    socket.emit('load history', messageHistory);
 
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
+    socket.on('chat message', (data) => {
+        // Build the message object
+        const messageData = {
+            user: data.user,
+            text: data.text,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        // Save to history
+        messageHistory.push(messageData);
+        if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+
+        // Broadcast to everyone
+        io.emit('chat message', messageData);
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server on port ${PORT}`));
