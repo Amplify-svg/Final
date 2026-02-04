@@ -208,7 +208,7 @@ if (pageId === 'page-chat') {
 }
 
 // ==========================================
-// --- PAGE: VIDEO CALL (UPDATED & FIXED) ---
+// --- PAGE: VIDEO CALL (NETWORK FIX APPLIED) ---
 // ==========================================
 if (pageId === 'page-call') {
     const localVideo = document.getElementById('local-video');
@@ -223,9 +223,11 @@ if (pageId === 'page-call') {
     let peerConnection;
     let pendingOffer;
     let callerName;
-    let iceQueue = [];
+    
+    // QUEUES TO SAVE PACKETS
+    let iceQueue = [];         // Candidates waiting for Remote Description
+    let earlyCandidates = [];  // Candidates waiting for User to click "Accept"
 
-    // FIXED: Expanded STUN list for better connection on different networks
     const peerConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -241,7 +243,7 @@ if (pageId === 'page-call') {
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
-            localVideo.muted = true; // Always mute local video to avoid feedback
+            localVideo.muted = true; 
         } catch (err) {
             console.error("Camera Error:", err);
             alert("Camera access denied. Ensure you are using HTTPS.");
@@ -250,7 +252,6 @@ if (pageId === 'page-call') {
     }
     startLocalStream();
 
-    // 2. Helper: Initialize Remote Stream
     function initRemoteStream() {
         remoteStream = new MediaStream();
         remoteVideo.srcObject = remoteStream;
@@ -308,9 +309,12 @@ if (pageId === 'page-call') {
 
         try {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOffer));
+            
+            // FLUSH THE QUEUE: Process all candidates that arrived before we clicked Accept
             while (iceQueue.length > 0) {
                 await peerConnection.addIceCandidate(iceQueue.shift());
             }
+            
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             socket.emit('answer-call', { to: callerName, answer });
@@ -337,8 +341,15 @@ if (pageId === 'page-call') {
         endCallLogic();
     });
 
+    // --- CRITICAL FIX: HANDLE EARLY CANDIDATES ---
     socket.on('ice-candidate', async (data) => {
-        if (!peerConnection) return;
+        // If connection doesn't exist yet (user hasn't clicked accept), SAVE IT.
+        if (!peerConnection) {
+            console.log("Saving early candidate...");
+            earlyCandidates.push(data.candidate);
+            return;
+        }
+        
         try {
             if (peerConnection.remoteDescription) {
                 await peerConnection.addIceCandidate(data.candidate);
@@ -351,6 +362,13 @@ if (pageId === 'page-call') {
     function createPeerConnection(remoteUser) {
         iceQueue = [];
         peerConnection = new RTCPeerConnection(peerConfig);
+
+        // MOVE EARLY CANDIDATES TO THE MAIN QUEUE
+        if (earlyCandidates.length > 0) {
+            console.log(`Processing ${earlyCandidates.length} saved candidates`);
+            earlyCandidates.forEach(c => iceQueue.push(c));
+            earlyCandidates = [];
+        }
 
         peerConnection.onicecandidate = (event) => {
             if(event.candidate) {
@@ -367,12 +385,10 @@ if (pageId === 'page-call') {
             }
         };
 
-        // --- FIXED TRACK HANDLING ---
         peerConnection.ontrack = (event) => {
             console.log("Track received:", event.track.kind);
             if (remoteStream) {
                 remoteStream.addTrack(event.track);
-                // FORCE PLAY: This ensures video plays even if browser tries to block it
                 if (remoteVideo.paused) {
                      remoteVideo.play().catch(e => console.error("Auto-play failed", e));
                 }
@@ -391,5 +407,6 @@ if (pageId === 'page-call') {
         }
         remoteVideo.srcObject = null;
         hangupBtn.disabled = true;
+        earlyCandidates = [];
     }
 }
