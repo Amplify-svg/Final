@@ -15,11 +15,7 @@
     --font-main: 'Inter', sans-serif;
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
     background-color: var(--bg-dark);
@@ -27,25 +23,18 @@ body {
     font-family: var(--font-main);
     height: 100vh;
     width: 100vw;
-    overflow: hidden; /* Prevent body scroll, handle inside containers */
+    overflow: hidden; 
 }
 
-/* Background Particles Canvas */
+/* Background Particles */
 #particleCanvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    opacity: 0.6;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: -1; opacity: 0.6;
 }
 
 /* =========================================
-   2. COMMON UTILITIES & COMPONENTS
+   2. COMMON UTILITIES
    ========================================= */
-
-/* The Glass Effect Class */
 .glass-panel {
     background: var(--glass-bg);
     backdrop-filter: blur(16px);
@@ -55,102 +44,72 @@ body {
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
 }
 
-/* Animations */
+.hidden { display: none !important; }
 .fade-in { animation: fadeIn 0.5s ease-in-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* Scrollbar Styling */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
-
-/* Buttons */
+/* Button Styles */
 button { font-family: var(--font-main); transition: all 0.3s ease; cursor: pointer; }
 
 .btn-primary {
-    background: var(--primary);
-    color: #000;
-    border: none;
-    padding: 12px 24px;
-    font-weight: 700;
-    border-radius: 50px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    background: var(--primary); color: #000; border: none;
+    padding: 12px 24px; font-weight: 700; border-radius: 50px;
+    text-transform: uppercase; letter-spacing: 1px;
     box-shadow: 0 0 15px var(--primary-glow);
+    width: 100%;
 }
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 25px var(--primary-glow); }
 
+.btn-danger {
+    background: transparent; border: 1px solid var(--danger);
+    color: var(--danger); padding: 10px 20px; border-radius: 8px;
+}
+.btn-danger:hover { background: var(--danger); color: white; }
+
 .btn-glow {
-    background: transparent;
-    border: 2px solid var(--primary);
-    color: var(--primary);
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-weight: bold;
+    background: transparent; border: 2px solid var(--primary);
+    color: var(--primary); padding: 10px 20px; border-radius: 8px; font-weight: bold;
     box-shadow: 0 0 10px var(--primary-glow);
 }
 .btn-glow:hover { background: var(--primary); color: #000; }
 
-.btn-danger {
-    background: transparent;
-    border: 1px solid var(--danger);
-    color: var(--danger);
-    padding: 10px 20px;
-    border-radius: 8px;
-}
-.btn-danger:hover { background: var(--danger); color: white; }
-
-/* Inputs */
 input {
-    width: 100%;
-    padding: 12px 15px;
-    background: rgba(0,0,0,0.3);
-    border: 1px solid var(--glass-border);
-    border-radius: 10px;
-    color: white;
-    font-family: var(--font-main);
-    outline: none;
-    transition: 0.3s;
+    width: 100%; padding: 12px 15px; margin-bottom: 15px;
+    background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
+    border-radius: 10px; color: white; outline: none; transition: 0.3s;
 }
 input:focus { border-color: var(--primary); background: rgba(0,0,0,0.5); }
 
-/* Modals */
-.hidden { display: none !important; }
-
-.centered-panel {
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%; max-width: 400px;
-    padding: 30px;
-    z-index: 1000;
-    text-align: center;
-}
-
 /* =========================================
-   3. PAGE: LOGIN / INDEX
+   3. SPECIFIC PAGE LAYOUTS
    ========================================= */
+
+/* --- A. LOGIN PAGE (index.html) --- */
+/* This specifically targets the body ID #page-index */
 #page-index {
     display: flex;
     justify-content: center;
     align-items: center;
+    height: 100vh;
+    width: 100vw;
 }
 
-.login-card {
-    width: 400px;
+#page-index .login-card {
+    width: 100%;
+    max-width: 400px;
     padding: 40px;
     text-align: center;
+    /* Ensure it floats above particles */
+    position: relative; 
+    z-index: 10;
 }
 
-.login-card h1 { font-size: 2.5rem; margin-bottom: 10px; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
-.login-card p { color: var(--text-muted); margin-bottom: 30px; }
-.form-group { margin-bottom: 20px; text-align: left; }
-.form-group label { display: block; color: var(--text-muted); margin-bottom: 5px; font-size: 0.9rem; }
+#page-index h1 { font-size: 2.5rem; margin-bottom: 10px; }
+#page-index p { color: var(--text-muted); margin-bottom: 30px; }
+#page-index .form-group { text-align: left; margin-bottom: 10px; }
+#page-index label { display: block; color: var(--text-muted); margin-bottom: 5px; font-size: 0.9rem; }
 
-/* =========================================
-   4. PAGE: CHAT ROOM
-   ========================================= */
+/* --- B. CHAT PAGE (chat.html) --- */
 .chat-layout {
     display: grid;
     grid-template-columns: 280px 1fr;
@@ -161,201 +120,96 @@ input:focus { border-color: var(--primary); background: rgba(0,0,0,0.5); }
     margin: 0 auto;
 }
 
-/* Sidebar Styling */
-.chat-sidebar {
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-}
+.chat-sidebar { display: flex; flex-direction: column; padding: 20px; }
+.chat-main { display: flex; flex-direction: column; position: relative; overflow: hidden; }
 
+/* Sidebar Elements */
 .nav-btn {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    padding: 12px 15px;
-    margin-bottom: 8px;
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    border-radius: 12px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    text-align: left;
+    display: flex; align-items: center; width: 100%; padding: 12px 15px;
+    margin-bottom: 8px; background: transparent; border: none;
+    color: var(--text-muted); border-radius: 12px; font-weight: 600; text-align: left;
 }
-.nav-btn i { width: 25px; margin-right: 10px; transition: 0.2s; }
 .nav-btn:hover { background: rgba(255,255,255,0.08); color: white; }
-.nav-btn:hover i { color: var(--primary); }
+.nav-btn i { width: 25px; margin-right: 10px; }
 .nav-btn.logout-btn:hover { background: rgba(255, 71, 87, 0.1); color: var(--danger); }
-.nav-btn.logout-btn:hover i { color: var(--danger); }
 
 .divider { height: 1px; background: rgba(255,255,255,0.1); margin: 15px 0; }
-.sidebar-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #666; margin: 20px 0 10px; font-weight: 700; }
+.sidebar-title { font-size: 0.75rem; text-transform: uppercase; color: #666; margin: 20px 0 10px; font-weight: 700; }
 
 .online-list-wrapper { flex: 1; overflow-y: auto; }
+#online-users-list { list-style: none; padding: 0; }
 #online-users-list li {
-    padding: 8px 10px;
-    display: flex; align-items: center; gap: 10px;
-    color: #ddd; font-size: 0.9rem;
-    border-radius: 6px;
+    padding: 8px 10px; display: flex; align-items: center; gap: 10px;
+    color: #ddd; font-size: 0.9rem; border-radius: 6px;
 }
 #online-users-list li::before {
     content: ''; width: 8px; height: 8px; background: var(--primary);
     border-radius: 50%; box-shadow: 0 0 5px var(--primary);
 }
 
-/* Main Chat Area */
-.chat-main {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    overflow: hidden;
-}
+/* Chat Messages */
+#messages { flex: 1; overflow-y: auto; padding: 25px; display: flex; flex-direction: column; gap: 15px; }
 
-#messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 25px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-/* Chat Bubbles */
 .message { display: flex; flex-direction: column; max-width: 70%; animation: fadeIn 0.3s ease; }
 .msg-top { display: flex; align-items: flex-end; gap: 10px; }
 .msg-pfp { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,0.2); }
+.msg-bubble { padding: 12px 18px; border-radius: 18px; line-height: 1.5; font-size: 0.95rem; word-wrap: break-word; }
 
-.msg-bubble {
-    padding: 12px 18px;
-    border-radius: 18px;
-    position: relative;
-    line-height: 1.5;
-    font-size: 0.95rem;
-    word-wrap: break-word;
-}
-
-/* Me (Right Side) */
 .message.me { align-self: flex-end; align-items: flex-end; }
 .message.me .msg-top { flex-direction: row-reverse; }
-.message.me .msg-bubble {
-    background: linear-gradient(135deg, var(--primary), #00b09b);
-    color: #000;
-    border-bottom-right-radius: 4px;
-    box-shadow: 0 4px 15px rgba(0, 230, 118, 0.2);
-}
+.message.me .msg-bubble { background: linear-gradient(135deg, var(--primary), #00b09b); color: #000; border-bottom-right-radius: 4px; }
 .message.me .username { display: none; }
 
-/* Others (Left Side) */
 .message.other { align-self: flex-start; }
-.message.other .msg-bubble {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255,255,255,0.05);
-    color: white;
-    border-bottom-left-radius: 4px;
-}
-.message.other .username { font-size: 0.75rem; color: var(--primary); font-weight: 700; margin-bottom: 2px; display: block;}
-
+.message.other .msg-bubble { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255,255,255,0.05); color: white; border-bottom-left-radius: 4px; }
+.message.other .username { font-size: 0.75rem; color: var(--primary); font-weight: 700; margin-bottom: 2px; display: block; }
 .seen-status { font-size: 0.7rem; color: rgba(255,255,255,0.3); margin-top: 5px; margin-right: 5px; text-align: right; }
 
-/* Chat Input */
-#chat-form {
-    padding: 20px;
-    background: rgba(0,0,0,0.2);
-    border-top: 1px solid rgba(255,255,255,0.05);
-    display: flex; gap: 15px;
-}
-#msg-input { border-radius: 50px; }
-#send-btn {
-    width: 50px; height: 50px; border-radius: 50%;
-    background: var(--primary); color: black; border: none;
-    font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
-}
-#send-btn:hover { transform: scale(1.1); box-shadow: 0 0 15px var(--primary-glow); }
+#chat-form { padding: 20px; background: rgba(0,0,0,0.2); display: flex; gap: 15px; align-items: center; }
+#msg-input { margin-bottom: 0; border-radius: 50px; } /* Override default input margin */
+#send-btn { width: 50px; height: 50px; border-radius: 50%; background: var(--primary); border: none; display: flex; align-items: center; justify-content: center; }
 
-/* =========================================
-   5. PAGE: VIDEO CALL
-   ========================================= */
-#call-container {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: #000; overflow: hidden;
-}
-
+/* --- C. VIDEO CALL PAGE (call.html) --- */
+#page-call #call-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; }
 .video-wrapper { width: 100%; height: 100%; position: relative; }
-
-#remote-video {
-    width: 100%; height: 100%; object-fit: cover;
-    transform: scaleX(-1); /* Mirror effect */
-}
-
+#remote-video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 #local-video {
-    position: absolute;
-    top: 30px; right: 30px;
-    width: 240px; height: 160px;
-    background: #111;
-    border-radius: 16px;
-    object-fit: cover;
-    border: 2px solid rgba(255,255,255,0.1);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-    z-index: 10;
-    transition: 0.3s;
-    transform: scaleX(-1); /* Mirror effect */
+    position: absolute; top: 30px; right: 30px; width: 240px; height: 160px;
+    background: #111; border-radius: 16px; object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.1); z-index: 10; transform: scaleX(-1);
 }
-#local-video:hover { border-color: var(--primary); transform: scaleX(-1) scale(1.05); }
-
-/* Call Overlay Sidebar */
 .call-overlay-panel {
-    position: absolute;
-    top: 30px; left: 30px;
-    width: 280px; padding: 20px;
-    z-index: 20;
-    background: rgba(10, 10, 10, 0.75) !important;
+    position: absolute; top: 30px; left: 30px; width: 280px; padding: 20px;
+    z-index: 20; background: rgba(10, 10, 10, 0.75) !important;
 }
-
-/* Call Controls */
 .call-controls {
-    position: absolute;
-    bottom: 40px; left: 50%;
-    transform: translateX(-50%);
-    display: flex; gap: 20px;
-    z-index: 100;
-    background: rgba(20, 20, 20, 0.85);
-    padding: 15px 30px;
-    border-radius: 50px;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.15);
+    position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 20px; z-index: 100; background: rgba(20, 20, 20, 0.85);
+    padding: 15px 30px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.15);
 }
-
 .control-btn {
-    width: 55px; height: 55px; border-radius: 50%;
-    border: none; font-size: 1.4rem;
+    width: 55px; height: 55px; border-radius: 50%; border: none; font-size: 1.4rem;
     display: flex; align-items: center; justify-content: center;
     background: rgba(255,255,255,0.1); color: white;
 }
-.control-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.1); }
-
 #hangup-btn { background: var(--danger); color: white; width: 65px; height: 65px; font-size: 1.6rem; }
-#hangup-btn:hover { background: #ff6b81; box-shadow: 0 0 20px rgba(255, 71, 87, 0.4); }
-#hangup-btn:disabled { background: #333; cursor: not-allowed; opacity: 0.5; box-shadow: none; }
-
 #call-status {
     position: absolute; top: 40px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,0,0,0.6); padding: 8px 20px; border-radius: 30px;
-    backdrop-filter: blur(5px); color: white; font-weight: 600; font-size: 0.9rem;
-    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.6); padding: 8px 20px; border-radius: 30px; color: white;
 }
 
-/* Call Modal Specifics */
-#incoming-modal .buttons { display: flex; justify-content: center; gap: 15px; width: 100%; margin-top: 20px;}
+/* --- D. MODALS (Settings, Incoming Call) --- */
+.centered-panel {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 90%; max-width: 400px; padding: 30px; z-index: 1000; text-align: center;
+}
+.centered-panel .buttons { display: flex; gap: 10px; margin-top: 10px; }
 
-/* =========================================
-   6. RESPONSIVE
-   ========================================= */
+/* Responsive */
 @media (max-width: 768px) {
     .chat-layout { grid-template-columns: 1fr; padding: 0; }
-    .chat-sidebar { display: none; } /* Use a hamburger menu in real prod */
+    .chat-sidebar { display: none; }
     .chat-main { border-radius: 0; border: none; }
-    #messages { padding: 15px; }
-    
     #local-video { width: 100px; height: 140px; top: 10px; right: 10px; }
     .call-overlay-panel { display: none; }
 }
