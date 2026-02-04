@@ -3,49 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Call - YIPE IT WORKS</title>
+    <title>Video Uplink - Nexus</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body id="page-call" class="dark-mode">
+<body id="page-call">
     <canvas id="particleCanvas"></canvas>
 
-    <div id="call-container">
+    <div id="call-container" class="fade-in">
         
         <div class="video-wrapper">
             <video id="remote-video" autoplay playsinline></video>
             <video id="local-video" autoplay playsinline muted></video>
             
-            <div id="call-status" class="call-status">Ready to call</div>
+            <div id="call-status" class="call-status" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.5); font-size: 1.5rem; pointer-events: none;">
+                Waiting for connection...
+            </div>
         </div>
 
-        <div class="glass-panel" style="position: absolute; top: 20px; left: 20px; padding: 20px; width: 250px; z-index: 20; border-radius: 20px;">
+        <div class="glass-panel call-overlay">
             <button onclick="window.location.href='index.html'" class="nav-btn">
-                <i class="fas fa-arrow-left"></i> Back Home
+                <i class="fas fa-arrow-left"></i> Back to Hub
             </button>
-            <div class="divider"></div>
-            <h3 style="margin: 0 0 10px 0; font-size: 0.9rem; color: #888; text-transform: uppercase;">Online Users</h3>
-            <ul id="call-users-list" style="list-style: none; padding: 0; max-height: 300px; overflow-y: auto;"></ul>
+            <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 15px 0;"></div>
+            <h3 style="margin: 0 0 10px 10px; font-size: 0.8rem; color: var(--primary); letter-spacing: 1px;">AVAILABLE USERS</h3>
+            
+            <ul id="call-users-list" style="list-style: none; padding: 0; margin: 0; max-height: 200px; overflow-y: auto;">
+                </ul>
         </div>
 
-        <div class="call-controls">
-            <button class="control-btn"><i class="fas fa-microphone"></i></button>
-            <button class="control-btn"><i class="fas fa-video"></i></button>
-            
-            <button id="hangup-btn" onclick="endCall()" disabled>
+        <div class="call-controls glass-panel">
+            <button class="control-btn" title="Toggle Mic"><i class="fas fa-microphone"></i></button>
+            <button class="control-btn" title="Toggle Video"><i class="fas fa-video"></i></button>
+            <div style="width: 1px; height: 30px; background: rgba(255,255,255,0.2); margin: 0 10px;"></div>
+            <button id="hangup-btn" onclick="endCall()" class="control-btn" disabled title="End Call">
                 <i class="fas fa-phone-slash"></i>
             </button>
         </div>
     </div>
 
     <div id="incoming-modal" class="hidden glass-panel centered-panel">
-        <div style="font-size: 3rem; color: #00e676; margin-bottom: 20px;">
+        <div style="font-size: 3rem; color: var(--primary); margin-bottom: 20px;">
             <i class="fas fa-phone-volume fa-shake"></i>
         </div>
-        <h2 id="caller-name">Incoming Call...</h2>
-        <div class="buttons">
-            <button onclick="acceptCall()" class="btn-glow" style="margin-right: 10px;">Accept</button>
-            <button onclick="rejectIncomingCall()" class="btn-danger" style="background: #ff4757; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1;">Decline</button>
+        <h2 style="margin-bottom: 5px;">Incoming Call</h2>
+        <p id="caller-name" style="color: var(--text-muted); margin-bottom: 30px;">User is calling...</p>
+        
+        <div style="display: flex; gap: 15px; justify-content: center;">
+            <button onclick="acceptCall()" class="btn-glow" style="min-width: 120px;">
+                <i class="fas fa-check"></i> Accept
+            </button>
+            <button onclick="rejectIncomingCall()" class="btn-danger" style="min-width: 120px;">
+                <i class="fas fa-times"></i> Decline
+            </button>
         </div>
     </div>
 
