@@ -13,18 +13,15 @@ else if (currentUser && pageId === 'page-login') window.location.href = 'index.h
 if (currentUser) socket.emit('login', currentUser);
 
 window.logout = function() {
-    // Notify server we are leaving before clearing data
     if(currentUser) socket.emit('chatLeave', currentUser.username); 
     localStorage.removeItem('chatUser');
     window.location.href = 'login.html';
 }
 
-// --- TIME FORMATTER (CENTRAL TIME) ---
+// --- TIME FORMATTER ---
 function formatTimeCentral(isoString) {
-    if (!isoString) return new Date().toLocaleTimeString('en-US', {
-        timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit', hour12: true
-    });
-    return new Date(isoString).toLocaleTimeString('en-US', {
+    const d = isoString ? new Date(isoString) : new Date();
+    return d.toLocaleTimeString('en-US', {
         timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit', hour12: true
     });
 }
@@ -67,7 +64,6 @@ if (pageId === 'page-home') {
             document.getElementById('display-pfp').src = data.pfp || 'https://i.pravatar.cc/150';
         }
     });
-    // Simple online list for Dashboard
     socket.on('updateUserList', (users) => {
         const list = document.getElementById('online-users-list');
         if(list) {
@@ -82,7 +78,7 @@ if (pageId === 'page-home') {
 }
 
 // ==========================================
-// --- PAGE: CHAT ROOM (VISUAL OVERHAUL) ---
+// --- PAGE: CHAT ROOM ---
 // ==========================================
 if (pageId === 'page-chat') {
     const messagesDiv = document.getElementById('messages');
@@ -91,11 +87,8 @@ if (pageId === 'page-chat') {
     const typingDiv = document.getElementById('typing-indicator');
     let typingTimeout;
 
-    // 1. Notify Server of Join/Leave for System Messages
-    // We emit a special event when this specific page loads
     socket.emit('chatJoin', currentUser.username);
 
-    // Detect when user leaves the page (closes tab or goes back)
     window.addEventListener('beforeunload', () => {
         socket.emit('chatLeave', currentUser.username);
     });
@@ -107,7 +100,6 @@ if (pageId === 'page-chat') {
 
     socket.emit('loadHistory');
 
-    // Update Sidebar User List
     socket.on('updateUserList', (users) => {
         if(onlineList) {
             onlineList.innerHTML = '';
@@ -120,92 +112,68 @@ if (pageId === 'page-chat') {
         }
     });
 
-    // --- MAIN MESSAGE RENDERER ---
     const updateOrAppendMessage = (data) => {
-        const existing = document.getElementById(`msg-${data.id}`);
+        const existingWrapper = document.getElementById(`wrapper-${data.id}`);
         
-        // Handle "System" messages (Joined/Left) differently
+        // 1. System Messages
         if (data.user === 'System' || data.type === 'system') {
+            if(existingWrapper) return; // Don't duplicate system messages
             const sysDiv = document.createElement('div');
             sysDiv.className = 'system-message-wrapper';
-            sysDiv.style.textAlign = 'center';
-            sysDiv.style.margin = '10px 0';
-            sysDiv.style.opacity = '0.7';
-            sysDiv.innerHTML = `<span style="background: rgba(255,255,255,0.1); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; color: #aaa;">${data.text} <span style="font-size:0.7em; margin-left:5px;">${formatTimeCentral(data.timestamp)}</span></span>`;
+            sysDiv.innerHTML = `<span>${data.text} &bull; ${formatTimeCentral(data.timestamp)}</span>`;
             messagesDiv.appendChild(sysDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
             return;
         }
 
-        // Handle Normal Chat Messages
+        // 2. Data Prep
+        // Fix: Case insensitive check to prevent alignment bugs
+        const isMe = data.user.toLowerCase() === currentUser.username.toLowerCase();
         const viewers = data.seenBy ? data.seenBy.filter(u => u !== data.user) : [];
         let seenText = '';
-        if (viewers.length > 0) seenText = viewers.length > 5 ? `Seen by ${viewers.length}` : `Seen by: ${viewers.join(', ')}`;
+        if (viewers.length > 0) seenText = viewers.length > 5 ? `Seen by ${viewers.length}` : `Seen by ${viewers.join(', ')}`;
 
-        if (existing) {
-            const seenDiv = existing.querySelector('.seen-status');
-            if (seenDiv) seenDiv.innerText = seenText;
+        // 3. Render
+        if (existingWrapper) {
+            const seenEl = existingWrapper.querySelector('.seen-status');
+            if (seenEl) seenEl.innerText = seenText;
         } else {
-            const div = document.createElement('div');
-            div.id = `msg-${data.id}`;
-            
-            const isMe = data.user === currentUser.username;
-            div.classList.add('message');
-            // Add classes for CSS styling
-            div.classList.add(isMe ? 'me' : 'other');
-            
-            // Standard User Message Structure
+            const wrapper = document.createElement('div');
+            wrapper.id = `wrapper-${data.id}`;
+            wrapper.classList.add('message-wrapper');
+            wrapper.classList.add(isMe ? 'me' : 'other'); // This triggers CSS alignment
+
             const pfp = data.pfp || 'https://i.pravatar.cc/150';
             const timeStr = formatTimeCentral(data.timestamp);
             
-            const deleteBtn = isMe ? 
-                `<i class="fas fa-trash delete-icon" onclick="deleteMsg('${data.id}')" title="Delete Message" style="margin-left:10px; cursor:pointer; font-size: 0.8rem; opacity: 0.5;"></i>` : '';
-            
-            // HTML Structure aligned with "Nexus" CSS
-            // 1. Avatar (only if not me)
-            // 2. Bubble containing Header (Name+Time) and Body (Text)
-            
-            let html = '';
-            
-            if (!isMe) {
-                html += `<img src="${pfp}" class="msg-pfp" style="width:35px; height:35px; border-radius:50%; margin-right:10px; align-self:flex-end;">`;
-            }
+            const deleteHtml = isMe ? 
+                `<i class="fas fa-trash delete-icon" onclick="deleteMsg('${data.id}')" title="Delete"></i>` : '';
 
-            html += `
-                <div class="msg-bubble" style="max-width: 70%; display:flex; flex-direction:column;">
-                    <div class="msg-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:0.85rem;">
-                        <span class="username" style="font-weight:bold; color: ${isMe ? '#000' : '#00e676'}">${data.user}</span>
-                        <span class="timestamp" style="font-size:0.7rem; opacity:0.7; margin-left:8px;">${timeStr}</span>
+            // Bubble content
+            const nameColor = isMe ? '#000' : 'var(--primary)';
+
+            wrapper.innerHTML = `
+                <div class="msg-row">
+                    ${!isMe ? `<img src="${pfp}" class="msg-pfp">` : ''} 
+                    
+                    <div class="msg-bubble">
+                        <div class="msg-header">
+                            <span class="username" style="color: ${nameColor}">${data.user}</span>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <span class="timestamp">${timeStr}</span>
+                                ${deleteHtml}
+                            </div>
+                        </div>
+                        <div class="msg-text">${data.text}</div>
                     </div>
-                    <div class="msg-text" style="line-height:1.4;">${data.text}</div>
-                    ${isMe ? `<div style="text-align:right; margin-top:5px;">${deleteBtn}</div>` : ''}
                 </div>
+                <div class="seen-status">${seenText}</div>
             `;
-
-            div.innerHTML = html;
-            div.style.display = 'flex';
-            div.style.justifyContent = isMe ? 'flex-end' : 'flex-start';
-            div.style.marginBottom = '15px';
-
-            // Append "Seen" status below the message row
-            const statusRow = document.createElement('div');
-            statusRow.className = 'seen-status';
-            statusRow.style.fontSize = '0.7rem';
-            statusRow.style.color = '#666';
-            statusRow.style.textAlign = isMe ? 'right' : 'left';
-            statusRow.style.marginLeft = isMe ? '0' : '50px'; // Indent for avatar
-            statusRow.style.marginRight = isMe ? '10px' : '0';
-            statusRow.innerText = seenText;
-            
-            // Wrapper to hold message + status
-            const wrapper = document.createElement('div');
-            wrapper.appendChild(div);
-            wrapper.appendChild(statusRow);
 
             messagesDiv.appendChild(wrapper);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-            if (!document.hidden && data.user !== currentUser.username && !data.seenBy.includes(currentUser.username)) {
+            if (!document.hidden && !isMe && !data.seenBy.includes(currentUser.username)) {
                 socket.emit('markSeen', data.id);
             }
         }
@@ -219,7 +187,7 @@ if (pageId === 'page-chat') {
         if(!document.hidden) socket.emit('markAllSeen');
     });
 
-    // TYPING INDICATOR
+    // Typing
     msgInput.addEventListener('input', () => {
         socket.emit('typing');
         clearTimeout(typingTimeout);
@@ -228,7 +196,7 @@ if (pageId === 'page-chat') {
     socket.on('userTyping', (u) => typingDiv.innerText = `${u} is typing...`);
     socket.on('userStoppedTyping', () => typingDiv.innerText = '');
 
-    // SEND MESSAGE
+    // Send
     document.getElementById('chat-form').addEventListener('submit', (e) => {
         e.preventDefault();
         if(msgInput.value) {
@@ -238,16 +206,11 @@ if (pageId === 'page-chat') {
         }
     });
 
-    // SETTINGS / DELETE
+    // Actions
     window.deleteMsg = (id) => { if(confirm("Delete this message?")) socket.emit('deleteMessage', id); }
-    socket.on('messageDeleted', (id) => {
-        // We have to reload history or remove element. 
-        // Simple way: remove the wrapper (which we didn't ID). 
-        // Better: Reload history
-        socket.emit('loadHistory');
-    });
+    socket.on('messageDeleted', (id) => { socket.emit('loadHistory'); });
 
-    // ... (Settings Modal Code stays the same) ...
+    // Settings Modal
     const modal = document.getElementById('settings-modal');
     window.toggleSettings = () => {
         modal.classList.toggle('hidden');
@@ -277,9 +240,8 @@ if (pageId === 'page-chat') {
 }
 
 // ==========================================
-// --- PAGE: VIDEO CALL (Unchanged) ---
+// --- PAGE: VIDEO CALL ---
 // ==========================================
-// ... (Keep your existing video call code here exactly as it was) ...
 if (pageId === 'page-call') {
     const localVideo = document.getElementById('local-video');
     const remoteVideo = document.getElementById('remote-video');
@@ -288,22 +250,13 @@ if (pageId === 'page-call') {
     const hangupBtn = document.getElementById('hangup-btn');
     const incomingModal = document.getElementById('incoming-modal');
     
-    let localStream;
-    let remoteStream;
-    let peerConnection;
-    let pendingOffer;
-    let callerName;
-    
-    let iceQueue = [];
-    let earlyCandidates = [];
+    let localStream, remoteStream, peerConnection, pendingOffer, callerName;
+    let iceQueue = [], earlyCandidates = [];
 
     const peerConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' }
         ]
     };
 
@@ -330,10 +283,7 @@ if (pageId === 'page-call') {
         users.forEach(u => {
             if (u === currentUser.username) return;
             const li = document.createElement('li');
-            li.style.display = 'flex';
-            li.style.justifyContent = 'space-between';
-            li.style.alignItems = 'center';
-            li.style.marginBottom = '10px';
+            li.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;';
             li.innerHTML = `
                 <span><i class="fas fa-circle" style="color:#00e676; margin-right:5px;"></i> ${u}</span>
                 <button class="call-icon-btn" onclick="startCall('${u}')" style="background:#00e676; border:none; width:30px; height:30px; border-radius:50%; cursor:pointer;"><i class="fas fa-video"></i></button>
@@ -344,7 +294,6 @@ if (pageId === 'page-call') {
 
     window.startCall = async (userToCall) => {
         if (!localStream) return alert("Camera not ready.");
-        
         initRemoteStream();
         callStatus.innerText = `Calling ${userToCall}...`;
         hangupBtn.disabled = false;
@@ -362,13 +311,12 @@ if (pageId === 'page-call') {
     socket.on('incoming-call', (data) => {
         pendingOffer = data.offer;
         callerName = data.from;
-        document.getElementById('caller-name').innerText = `Incoming call from ${callerName}`;
+        document.getElementById('caller-name').innerText = `Incoming from ${callerName}`;
         incomingModal.classList.remove('hidden');
     });
 
     window.acceptCall = async () => {
         if (!localStream) return alert("Camera not ready.");
-        
         initRemoteStream();
         incomingModal.classList.add('hidden');
         callStatus.innerText = "Connecting...";
@@ -379,9 +327,8 @@ if (pageId === 'page-call') {
 
         try {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOffer));
-            while (iceQueue.length > 0) {
-                await peerConnection.addIceCandidate(iceQueue.shift());
-            }
+            while (iceQueue.length > 0) await peerConnection.addIceCandidate(iceQueue.shift());
+            
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             socket.emit('answer-call', { to: callerName, answer });
@@ -396,9 +343,8 @@ if (pageId === 'page-call') {
     socket.on('call-answered', async (data) => {
         try {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-            while (iceQueue.length > 0) {
-                await peerConnection.addIceCandidate(iceQueue.shift());
-            }
+            while (iceQueue.length > 0) await peerConnection.addIceCandidate(iceQueue.shift());
+            callStatus.innerText = "Connected";
         } catch (err) { console.error(err); }
     });
 
@@ -414,11 +360,8 @@ if (pageId === 'page-call') {
             return;
         }
         try {
-            if (peerConnection.remoteDescription) {
-                await peerConnection.addIceCandidate(data.candidate);
-            } else {
-                iceQueue.push(data.candidate);
-            }
+            if (peerConnection.remoteDescription) await peerConnection.addIceCandidate(data.candidate);
+            else iceQueue.push(data.candidate);
         } catch(e) { console.error('ICE Error:', e); }
     });
 
@@ -431,15 +374,12 @@ if (pageId === 'page-call') {
         }
 
         peerConnection.onicecandidate = (event) => {
-            if(event.candidate) {
-                socket.emit('ice-candidate', { to: remoteUser, candidate: event.candidate });
-            }
+            if(event.candidate) socket.emit('ice-candidate', { to: remoteUser, candidate: event.candidate });
         };
 
         peerConnection.oniceconnectionstatechange = () => {
-            if (peerConnection.iceConnectionState === 'connected') {
-                callStatus.innerText = "Connected";
-            } else if (peerConnection.iceConnectionState === 'disconnected') {
+            if (peerConnection.iceConnectionState === 'connected') callStatus.innerText = "Connected";
+            else if (peerConnection.iceConnectionState === 'disconnected') {
                 callStatus.innerText = "Disconnected";
                 endCallLogic();
             }
