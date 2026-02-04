@@ -208,7 +208,7 @@ if (pageId === 'page-chat') {
 }
 
 // ==========================================
-// --- PAGE: VIDEO CALL (FINAL FIXED) ---
+// --- PAGE: VIDEO CALL (UPDATED & FIXED) ---
 // ==========================================
 if (pageId === 'page-call') {
     const localVideo = document.getElementById('local-video');
@@ -219,16 +219,20 @@ if (pageId === 'page-call') {
     const incomingModal = document.getElementById('incoming-modal');
     
     let localStream;
-    let remoteStream; // We will use a Single Stable Stream
+    let remoteStream;
     let peerConnection;
     let pendingOffer;
     let callerName;
     let iceQueue = [];
 
+    // FIXED: Expanded STUN list for better connection on different networks
     const peerConfig = {
         iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' }, 
-            { urls: 'stun:stun1.l.google.com:19302' }
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
         ]
     };
 
@@ -237,7 +241,7 @@ if (pageId === 'page-call') {
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
-            localVideo.muted = true;
+            localVideo.muted = true; // Always mute local video to avoid feedback
         } catch (err) {
             console.error("Camera Error:", err);
             alert("Camera access denied. Ensure you are using HTTPS.");
@@ -246,8 +250,7 @@ if (pageId === 'page-call') {
     }
     startLocalStream();
 
-    // 2. Helper: Initialize a clean Remote Stream
-    // This runs once per call start. It sets the TV to channel 1, so we don't have to switch channels later.
+    // 2. Helper: Initialize Remote Stream
     function initRemoteStream() {
         remoteStream = new MediaStream();
         remoteVideo.srcObject = remoteStream;
@@ -270,7 +273,7 @@ if (pageId === 'page-call') {
     window.startCall = async (userToCall) => {
         if (!localStream) return alert("Camera not ready.");
         
-        initRemoteStream(); // Setup empty stream
+        initRemoteStream();
         callStatus.innerText = `Calling ${userToCall}...`;
         hangupBtn.disabled = false;
         
@@ -295,7 +298,7 @@ if (pageId === 'page-call') {
     window.acceptCall = async () => {
         if (!localStream) return alert("Camera not ready.");
         
-        initRemoteStream(); // Setup empty stream
+        initRemoteStream();
         incomingModal.classList.add('hidden');
         callStatus.innerText = "Connecting...";
         hangupBtn.disabled = false;
@@ -364,13 +367,15 @@ if (pageId === 'page-call') {
             }
         };
 
-        // --- THE FIX IS HERE ---
-        // Instead of resetting the video player (srcObject) every time a track arrives,
-        // we just ADD the new track to the existing stream.
+        // --- FIXED TRACK HANDLING ---
         peerConnection.ontrack = (event) => {
             console.log("Track received:", event.track.kind);
             if (remoteStream) {
                 remoteStream.addTrack(event.track);
+                // FORCE PLAY: This ensures video plays even if browser tries to block it
+                if (remoteVideo.paused) {
+                     remoteVideo.play().catch(e => console.error("Auto-play failed", e));
+                }
             }
         };
     }
