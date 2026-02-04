@@ -1,0 +1,19 @@
+nohup: ignoring input
+Server running on port 3000
+Socket connected: MaO2JWOaSRhsN8WVAAAC
+Socket connected: cOqmfcRB1BqeTy9DAAAD
+call-user: undefined -> bob
+call-user: targetSocket not found for bob
+answer-call to: alice
+answer-call: targetSocket not found for alice
+ice-candidate: to= bob candidate= candidate:1 1 UDP 2122260223 192.0.2.1 3
+ice-candidate: targetSocket not found for bob
+Socket disconnected: MaO2JWOaSRhsN8WVAAAC username: undefined
+Socket disconnected: cOqmfcRB1BqeTy9DAAAD username: undefined
+Socket connected: Jk5I8SzidRcmNPnHAAAG
+Socket connected: Nz7pWXnZIf0tp216AAAH
+call-user: alice -> bob
+answer-call to: alice
+ice-candidate: to= bob candidate= candidate:1 1 UDP 2122260223 192.0.2.1 3
+Socket disconnected: Jk5I8SzidRcmNPnHAAAG username: alice
+Socket disconnected: Nz7pWXnZIf0tp216AAAH username: bob

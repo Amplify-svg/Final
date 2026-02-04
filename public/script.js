@@ -383,7 +383,14 @@ if (pageId === 'page-call') {
         iceQueue = [];
         peerConnection = new RTCPeerConnection(peerConfig);
         if (earlyCandidates.length > 0) {
-            earlyCandidates.forEach(c => iceQueue.push(c));
+            console.log(`Processing ${earlyCandidates.length} saved candidates`);
+            earlyCandidates.forEach(c => {
+                if (peerConnection.remoteDescription) {
+                    peerConnection.addIceCandidate(c).catch(e => console.error('Early candidate add failed:', e));
+                } else {
+                    iceQueue.push(c);
+                }
+            });
             earlyCandidates = [];
         }
 
