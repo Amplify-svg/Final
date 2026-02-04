@@ -208,7 +208,7 @@ if (pageId === 'page-chat') {
 }
 
 // ==========================================
-// --- PAGE: VIDEO CALL (WEBRTC FIXED) ---
+// --- PAGE: VIDEO CALL (FINAL FIXED) ---
 // ==========================================
 if (pageId === 'page-call') {
     const localVideo = document.getElementById('local-video');
@@ -219,6 +219,7 @@ if (pageId === 'page-call') {
     const incomingModal = document.getElementById('incoming-modal');
     
     let localStream;
+    let remoteStream; // We will use a Single Stable Stream
     let peerConnection;
     let pendingOffer;
     let callerName;
@@ -227,11 +228,11 @@ if (pageId === 'page-call') {
     const peerConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' }, 
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' }
         ]
     };
 
+    // 1. Start Local Camera
     async function startLocalStream() {
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -244,6 +245,13 @@ if (pageId === 'page-call') {
         }
     }
     startLocalStream();
+
+    // 2. Helper: Initialize a clean Remote Stream
+    // This runs once per call start. It sets the TV to channel 1, so we don't have to switch channels later.
+    function initRemoteStream() {
+        remoteStream = new MediaStream();
+        remoteVideo.srcObject = remoteStream;
+    }
 
     socket.on('updateUserList', (users) => {
         userList.innerHTML = '';
@@ -258,8 +266,11 @@ if (pageId === 'page-call') {
         });
     });
 
+    // 3. START CALL
     window.startCall = async (userToCall) => {
         if (!localStream) return alert("Camera not ready.");
+        
+        initRemoteStream(); // Setup empty stream
         callStatus.innerText = `Calling ${userToCall}...`;
         hangupBtn.disabled = false;
         
@@ -280,8 +291,11 @@ if (pageId === 'page-call') {
         incomingModal.classList.remove('hidden');
     });
 
+    // 4. ACCEPT CALL
     window.acceptCall = async () => {
         if (!localStream) return alert("Camera not ready.");
+        
+        initRemoteStream(); // Setup empty stream
         incomingModal.classList.add('hidden');
         callStatus.innerText = "Connecting...";
         hangupBtn.disabled = false;
@@ -350,14 +364,13 @@ if (pageId === 'page-call') {
             }
         };
 
-        // --- FIX IS HERE ---
+        // --- THE FIX IS HERE ---
+        // Instead of resetting the video player (srcObject) every time a track arrives,
+        // we just ADD the new track to the existing stream.
         peerConnection.ontrack = (event) => {
-            const newStream = event.streams[0];
-            // Only set srcObject if it is not already set to this stream
-            if (remoteVideo.srcObject !== newStream) {
-                console.log("Stream received!");
-                remoteVideo.srcObject = newStream;
-                remoteVideo.play().catch(e => console.log("Play error:", e));
+            console.log("Track received:", event.track.kind);
+            if (remoteStream) {
+                remoteStream.addTrack(event.track);
             }
         };
     }
@@ -367,6 +380,10 @@ if (pageId === 'page-call') {
     function endCallLogic() {
         if(peerConnection) peerConnection.close();
         peerConnection = null;
+        if(remoteStream) {
+            remoteStream.getTracks().forEach(t => t.stop());
+            remoteStream = null;
+        }
         remoteVideo.srcObject = null;
         hangupBtn.disabled = true;
     }
