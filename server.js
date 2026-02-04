@@ -191,6 +191,36 @@ function createSystemMessage(text) {
     return { id: uuidv4(), user: 'System', text: text, timestamp: new Date().toISOString(), seenBy: [] };
 }
 
+// ------------------------------------------------------------------
+// ICE config endpoint
+// Returns an object { iceServers: [...] } which can include TURN
+// Use environment variables to configure TURN:
+//   TURN_URL (comma-separated), TURN_USERNAME, TURN_CREDENTIAL
+// Example: TURN_URL=turn:my.turn.server:3478,turn:my.turn.server:5349
+// ------------------------------------------------------------------
+app.get('/ice-config', (req, res) => {
+    const iceServers = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
+    ];
+
+    const turnUrl = process.env.TURN_URL; // comma separated if multiple
+    if (turnUrl && process.env.TURN_USERNAME && process.env.TURN_CREDENTIAL) {
+        const urls = turnUrl.split(',').map(u => u.trim()).filter(Boolean);
+        if (urls.length) {
+            iceServers.push({
+                urls,
+                username: process.env.TURN_USERNAME,
+                credential: process.env.TURN_CREDENTIAL
+            });
+            console.log('Added TURN server to ICE config.');
+        }
+    }
+
+    res.json({ iceServers });
+});
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
