@@ -9,15 +9,21 @@ let currentUser = savedUser ? JSON.parse(savedUser) : null;
 if (!currentUser && pageId !== 'page-login') window.location.href = 'login.html';
 else if (currentUser && pageId === 'page-login') window.location.href = 'index.html';
 
+// Global Login
 if (currentUser) socket.emit('login', currentUser);
 
 window.logout = function() {
+    // Notify server we are leaving before clearing data
+    if(currentUser) socket.emit('chatLeave', currentUser.username); 
     localStorage.removeItem('chatUser');
     window.location.href = 'login.html';
 }
 
+// --- TIME FORMATTER (CENTRAL TIME) ---
 function formatTimeCentral(isoString) {
-    if (!isoString) return '';
+    if (!isoString) return new Date().toLocaleTimeString('en-US', {
+        timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit', hour12: true
+    });
     return new Date(isoString).toLocaleTimeString('en-US', {
         timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit', hour12: true
     });
@@ -61,6 +67,7 @@ if (pageId === 'page-home') {
             document.getElementById('display-pfp').src = data.pfp || 'https://i.pravatar.cc/150';
         }
     });
+    // Simple online list for Dashboard
     socket.on('updateUserList', (users) => {
         const list = document.getElementById('online-users-list');
         if(list) {
@@ -75,7 +82,7 @@ if (pageId === 'page-home') {
 }
 
 // ==========================================
-// --- PAGE: CHAT ROOM (UPDATED FOR BUBBLES) ---
+// --- PAGE: CHAT ROOM (VISUAL OVERHAUL) ---
 // ==========================================
 if (pageId === 'page-chat') {
     const messagesDiv = document.getElementById('messages');
@@ -84,6 +91,15 @@ if (pageId === 'page-chat') {
     const typingDiv = document.getElementById('typing-indicator');
     let typingTimeout;
 
+    // 1. Notify Server of Join/Leave for System Messages
+    // We emit a special event when this specific page loads
+    socket.emit('chatJoin', currentUser.username);
+
+    // Detect when user leaves the page (closes tab or goes back)
+    window.addEventListener('beforeunload', () => {
+        socket.emit('chatLeave', currentUser.username);
+    });
+
     if (!document.hidden) socket.emit('markAllSeen');
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden) socket.emit('markAllSeen');
@@ -91,23 +107,40 @@ if (pageId === 'page-chat') {
 
     socket.emit('loadHistory');
 
+    // Update Sidebar User List
     socket.on('updateUserList', (users) => {
         if(onlineList) {
             onlineList.innerHTML = '';
             users.forEach(u => {
                 const li = document.createElement('li');
-                const isMe = u === currentUser.username ? " (You)" : "";
-                li.innerHTML = `<i class="fas fa-circle"></i> ${u}${isMe}`;
+                const isMe = u === currentUser.username ? " <span style='opacity:0.5'>(You)</span>" : "";
+                li.innerHTML = `<i class="fas fa-circle"></i> <span>${u}${isMe}</span>`;
                 onlineList.appendChild(li);
             });
         }
     });
 
+    // --- MAIN MESSAGE RENDERER ---
     const updateOrAppendMessage = (data) => {
         const existing = document.getElementById(`msg-${data.id}`);
+        
+        // Handle "System" messages (Joined/Left) differently
+        if (data.user === 'System' || data.type === 'system') {
+            const sysDiv = document.createElement('div');
+            sysDiv.className = 'system-message-wrapper';
+            sysDiv.style.textAlign = 'center';
+            sysDiv.style.margin = '10px 0';
+            sysDiv.style.opacity = '0.7';
+            sysDiv.innerHTML = `<span style="background: rgba(255,255,255,0.1); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; color: #aaa;">${data.text} <span style="font-size:0.7em; margin-left:5px;">${formatTimeCentral(data.timestamp)}</span></span>`;
+            messagesDiv.appendChild(sysDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return;
+        }
+
+        // Handle Normal Chat Messages
         const viewers = data.seenBy ? data.seenBy.filter(u => u !== data.user) : [];
         let seenText = '';
-        if (viewers.length > 0) seenText = viewers.length > 5 ? `Seen by ${viewers.length} people` : `Seen by: ${viewers.join(', ')}`;
+        if (viewers.length > 0) seenText = viewers.length > 5 ? `Seen by ${viewers.length}` : `Seen by: ${viewers.join(', ')}`;
 
         if (existing) {
             const seenDiv = existing.querySelector('.seen-status');
@@ -116,36 +149,62 @@ if (pageId === 'page-chat') {
             const div = document.createElement('div');
             div.id = `msg-${data.id}`;
             
-            // --- NEW: Determine if this is ME or OTHER ---
             const isMe = data.user === currentUser.username;
             div.classList.add('message');
+            // Add classes for CSS styling
             div.classList.add(isMe ? 'me' : 'other');
             
-            if (data.user === 'System') {
-                div.innerHTML = `<div class="system-msg" style="text-align:center; color:#666; font-size:0.8rem;">${data.text}</div>`;
-            } else {
-                const pfp = data.pfp || 'https://i.pravatar.cc/150';
-                const timeStr = formatTimeCentral(data.timestamp);
-                const canDelete = isMe ? 
-                    `<span class="delete-btn" onclick="deleteMsg('${data.id}')" style="margin-left:10px; cursor:pointer;"><i class="fas fa-trash"></i></span>` : '';
-                
-                div.innerHTML = `
-                    <div class="msg-top">
-                        <img src="${pfp}" class="msg-pfp">
-                        <div class="msg-bubble">
-                            <div class="msg-header">
-                                <span class="username">${data.user}</span>
-                                <span class="timestamp">${timeStr}</span>
-                            </div>
-                            <div style="word-break:break-word">${data.text}</div>
-                        </div>
-                        ${canDelete}
-                    </div>
-                    <div class="seen-status">${seenText}</div>
-                `;
+            // Standard User Message Structure
+            const pfp = data.pfp || 'https://i.pravatar.cc/150';
+            const timeStr = formatTimeCentral(data.timestamp);
+            
+            const deleteBtn = isMe ? 
+                `<i class="fas fa-trash delete-icon" onclick="deleteMsg('${data.id}')" title="Delete Message" style="margin-left:10px; cursor:pointer; font-size: 0.8rem; opacity: 0.5;"></i>` : '';
+            
+            // HTML Structure aligned with "Nexus" CSS
+            // 1. Avatar (only if not me)
+            // 2. Bubble containing Header (Name+Time) and Body (Text)
+            
+            let html = '';
+            
+            if (!isMe) {
+                html += `<img src="${pfp}" class="msg-pfp" style="width:35px; height:35px; border-radius:50%; margin-right:10px; align-self:flex-end;">`;
             }
-            messagesDiv.appendChild(div);
+
+            html += `
+                <div class="msg-bubble" style="max-width: 70%; display:flex; flex-direction:column;">
+                    <div class="msg-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:0.85rem;">
+                        <span class="username" style="font-weight:bold; color: ${isMe ? '#000' : '#00e676'}">${data.user}</span>
+                        <span class="timestamp" style="font-size:0.7rem; opacity:0.7; margin-left:8px;">${timeStr}</span>
+                    </div>
+                    <div class="msg-text" style="line-height:1.4;">${data.text}</div>
+                    ${isMe ? `<div style="text-align:right; margin-top:5px;">${deleteBtn}</div>` : ''}
+                </div>
+            `;
+
+            div.innerHTML = html;
+            div.style.display = 'flex';
+            div.style.justifyContent = isMe ? 'flex-end' : 'flex-start';
+            div.style.marginBottom = '15px';
+
+            // Append "Seen" status below the message row
+            const statusRow = document.createElement('div');
+            statusRow.className = 'seen-status';
+            statusRow.style.fontSize = '0.7rem';
+            statusRow.style.color = '#666';
+            statusRow.style.textAlign = isMe ? 'right' : 'left';
+            statusRow.style.marginLeft = isMe ? '0' : '50px'; // Indent for avatar
+            statusRow.style.marginRight = isMe ? '10px' : '0';
+            statusRow.innerText = seenText;
+            
+            // Wrapper to hold message + status
+            const wrapper = document.createElement('div');
+            wrapper.appendChild(div);
+            wrapper.appendChild(statusRow);
+
+            messagesDiv.appendChild(wrapper);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
             if (!document.hidden && data.user !== currentUser.username && !data.seenBy.includes(currentUser.username)) {
                 socket.emit('markSeen', data.id);
             }
@@ -160,6 +219,7 @@ if (pageId === 'page-chat') {
         if(!document.hidden) socket.emit('markAllSeen');
     });
 
+    // TYPING INDICATOR
     msgInput.addEventListener('input', () => {
         socket.emit('typing');
         clearTimeout(typingTimeout);
@@ -168,6 +228,7 @@ if (pageId === 'page-chat') {
     socket.on('userTyping', (u) => typingDiv.innerText = `${u} is typing...`);
     socket.on('userStoppedTyping', () => typingDiv.innerText = '');
 
+    // SEND MESSAGE
     document.getElementById('chat-form').addEventListener('submit', (e) => {
         e.preventDefault();
         if(msgInput.value) {
@@ -177,12 +238,16 @@ if (pageId === 'page-chat') {
         }
     });
 
-    window.deleteMsg = (id) => { if(confirm("Delete?")) socket.emit('deleteMessage', id); }
+    // SETTINGS / DELETE
+    window.deleteMsg = (id) => { if(confirm("Delete this message?")) socket.emit('deleteMessage', id); }
     socket.on('messageDeleted', (id) => {
-        const el = document.getElementById(`msg-${id}`);
-        if(el) el.remove();
+        // We have to reload history or remove element. 
+        // Simple way: remove the wrapper (which we didn't ID). 
+        // Better: Reload history
+        socket.emit('loadHistory');
     });
 
+    // ... (Settings Modal Code stays the same) ...
     const modal = document.getElementById('settings-modal');
     window.toggleSettings = () => {
         modal.classList.toggle('hidden');
@@ -212,8 +277,9 @@ if (pageId === 'page-chat') {
 }
 
 // ==========================================
-// --- PAGE: VIDEO CALL ---
+// --- PAGE: VIDEO CALL (Unchanged) ---
 // ==========================================
+// ... (Keep your existing video call code here exactly as it was) ...
 if (pageId === 'page-call') {
     const localVideo = document.getElementById('local-video');
     const remoteVideo = document.getElementById('remote-video');

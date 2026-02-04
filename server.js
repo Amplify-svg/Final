@@ -30,7 +30,7 @@ io.on('connection', (socket) => {
             connectedSockets[socket.id] = username;
             
             socket.emit('registerResponse', { success: true, username, pfp: users[username].pfp });
-            io.emit('message', createSystemMessage(`${username} has joined.`));
+            // Note: We removed the "Joined" message here because 'chatJoin' handles it when they enter the chat page
             
             broadcastOnlineUsers();
         }
@@ -42,11 +42,21 @@ io.on('connection', (socket) => {
             connectedSockets[socket.id] = username;
             
             socket.emit('loginResponse', { success: true, username, pfp: user.pfp });
-            socket.emit('updateUserList', getOnlineNames()); // Send list immediately to user
-            broadcastOnlineUsers(); // Update everyone else
+            socket.emit('updateUserList', getOnlineNames()); 
+            broadcastOnlineUsers(); 
         } else {
             socket.emit('loginResponse', { success: false, message: 'Invalid credentials.' });
         }
+    });
+
+    // --- NEW: SYSTEM MESSAGES (JOIN/LEAVE) ---
+    // This listens for the specific events we added to script.js
+    socket.on('chatJoin', (username) => {
+        io.emit('message', createSystemMessage(`${username} joined the chat`));
+    });
+
+    socket.on('chatLeave', (username) => {
+        io.emit('message', createSystemMessage(`${username} left the chat`));
     });
 
     // --- CHAT & SEEN BY ---
@@ -181,6 +191,8 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const username = connectedSockets[socket.id];
         if (username) {
+            // We do NOT emit "left chat" here because script.js sends 'chatLeave' 
+            // automatically when the tab closes or navigates.
             delete connectedSockets[socket.id];
             broadcastOnlineUsers();
         }
