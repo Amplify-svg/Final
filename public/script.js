@@ -216,7 +216,7 @@ if (pageId === 'page-call') {
     let pendingOffer;
     let callerName;
 
-    // Google's free STUN servers are usually enough for many connections
+    // STUN Servers (Essential for different networks)
     const peerConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' }, 
@@ -226,10 +226,15 @@ if (pageId === 'page-call') {
 
     async function startLocalStream() {
         try {
+            // Request Camera/Mic
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
+            // Mute local video so you don't hear yourself echo
+            localVideo.muted = true; 
         } catch (err) {
-            alert("Error accessing camera: " + err);
+            console.error("Camera Error:", err);
+            alert("Could not access camera. Ensure you are using HTTPS or localhost.");
+            callStatus.innerText = "Camera Blocked (Check HTTPS)";
         }
     }
     startLocalStream();
@@ -247,7 +252,9 @@ if (pageId === 'page-call') {
         });
     });
 
+    // --- START CALL ---
     window.startCall = async (userToCall) => {
+        if (!localStream) return alert("Camera not ready yet.");
         callStatus.innerText = `Calling ${userToCall}...`;
         hangupBtn.disabled = false;
         
@@ -259,6 +266,7 @@ if (pageId === 'page-call') {
         socket.emit('call-user', { userToCall, offer });
     };
 
+    // --- INCOMING CALL ---
     socket.on('incoming-call', (data) => {
         pendingOffer = data.offer;
         callerName = data.from;
@@ -267,11 +275,14 @@ if (pageId === 'page-call') {
     });
 
     window.acceptCall = async () => {
+        if (!localStream) return alert("Camera not ready yet.");
         incomingModal.classList.add('hidden');
-        callStatus.innerText = `Connected with ${callerName}`;
+        callStatus.innerText = "Connecting...";
         hangupBtn.disabled = false;
+
         createPeerConnection(callerName);
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
         await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOffer));
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
@@ -283,8 +294,8 @@ if (pageId === 'page-call') {
         socket.emit('reject-call', { to: callerName });
     };
 
+    // --- SIGNALS ---
     socket.on('call-answered', async (data) => {
-        callStatus.innerText = "Connected";
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
     });
 
@@ -298,19 +309,37 @@ if (pageId === 'page-call') {
         if(peerConnection) {
             try {
                 await peerConnection.addIceCandidate(data.candidate);
-            } catch(e) { console.error('Error adding received ice candidate', e); }
+            } catch(e) { console.error('Error adding ICE:', e); }
         }
     });
 
+    // --- WEBRTC CONNECTION LOGIC ---
     function createPeerConnection(remoteUser) {
         peerConnection = new RTCPeerConnection(peerConfig);
+
+        // 1. Send ICE candidates to the other person
         peerConnection.onicecandidate = (event) => {
             if(event.candidate) {
                 socket.emit('ice-candidate', { to: remoteUser, candidate: event.candidate });
             }
         };
+
+        // 2. Listen for connection state changes (Debugging)
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log("Connection State:", peerConnection.iceConnectionState);
+            if (peerConnection.iceConnectionState === 'connected') {
+                callStatus.innerText = "Connected";
+            } else if (peerConnection.iceConnectionState === 'disconnected' || peerConnection.iceConnectionState === 'failed') {
+                callStatus.innerText = "Connection Failed/Lost";
+            }
+        };
+
+        // 3. Receive Remote Stream (FIX ADDED HERE)
         peerConnection.ontrack = (event) => {
+            console.log("Stream received!");
             remoteVideo.srcObject = event.streams[0];
+            // Force play in case browser paused it
+            remoteVideo.play().catch(e => console.error("Auto-play blocked:", e)); 
         };
     }
 
