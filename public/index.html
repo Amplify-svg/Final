@@ -3,94 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home - mid honestly</title>
+    <title>Hub - Nexus</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        /* Specific tweaks for Home Page spacing */
-        .action-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            width: 100%;
-            margin-top: 20px;
-        }
-        
-        /* Hero Buttons with Gradients */
-        .hero-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 18px;
-            border-radius: 12px;
-            border: none;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            text-decoration: none;
-            color: white;
-            width: 100%;
-        }
-        .hero-btn i { margin-right: 10px; font-size: 1.3rem; }
-        .hero-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
-        
-        .btn-chat { background: linear-gradient(135deg, #00b09b, #96c93d); color: black; }
-        .btn-video { background: linear-gradient(135deg, #667eea, #764ba2); }
-        .btn-logout { background: rgba(255, 71, 87, 0.2); color: #ff6b81; border: 1px solid rgba(255, 71, 87, 0.3); }
-        .btn-logout:hover { background: #ff4757; color: white; }
-
-        /* Animation for entrance */
-        .fade-in-up { animation: fadeInUp 0.8s ease-out; }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body id="page-home" class="dark-mode">
+<body id="page-home">
     <canvas id="particleCanvas"></canvas>
 
-    <div class="home-container">
+    <div class="app-container">
         
-        <div class="glass-panel profile-card fade-in-up">
-            <div class="profile-header" style="flex-direction: column; text-align: center; gap: 10px;">
-                <img id="display-pfp" class="profile-avatar" src="" alt="Profile" style="width: 100px; height: 100px; margin: 0 auto;">
-                <div>
-                    <h2 style="margin: 0; font-weight: 400; color: #aaa; font-size: 1rem;">Welcome back,</h2>
-                    <h1 id="display-name" class="glow-text" style="font-size: 2rem; margin-top: 5px;">User</h1>
-                    <div style="font-size: 0.8rem; color: #00e676; margin-top: 5px;">
-                        <i class="fas fa-circle" style="font-size: 0.6rem;"></i> Active Now
+        <header class="dashboard-header fade-in">
+            <div class="brand">
+                <i class="fas fa-atom"></i> Nexus Revived
+            </div>
+            <div class="user-pill">
+                <img id="display-pfp" class="pill-avatar" src="" alt="">
+                <span id="display-name" class="pill-name">User</span>
+                <i onclick="logout()" class="fas fa-power-off logout-icon" title="Log Out"></i>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            
+            <div class="main-content">
+                <div class="glass-panel welcome-banner fade-in delay-1">
+                    <h2 style="margin:0; font-weight:400; color:#aaa; font-size:1rem;">Welcome back,</h2>
+                    <h1 class="glow-text">Ready to Connect?</h1>
+                    <p>Jump into the global chat room or start a private secure video call with your friends.</p>
+                </div>
+
+                <div class="actions-grid fade-in delay-2">
+                    <div onclick="window.location.href='chat.html'" class="action-card card-chat">
+                        <i class="fas fa-comments card-icon"></i>
+                        <div>
+                            <div class="card-title">Chat Room</div>
+                            <div class="card-desc">Join the live conversation</div>
+                        </div>
+                        <i class="fas fa-arrow-right" style="position:absolute; bottom:30px; right:30px; opacity:0.5;"></i>
+                    </div>
+
+                    <div onclick="window.location.href='call.html'" class="action-card card-video">
+                        <i class="fas fa-video card-icon"></i>
+                        <div>
+                            <div class="card-title">Video Call</div>
+                            <div class="card-desc">Low latency P2P calling</div>
+                        </div>
+                        <i class="fas fa-arrow-right" style="position:absolute; bottom:30px; right:30px; opacity:0.5;"></i>
                     </div>
                 </div>
             </div>
-            
-            <div class="divider"></div>
 
-            <div class="action-buttons">
-                <button onclick="window.location.href='chat.html'" class="hero-btn btn-chat">
-                    <i class="fas fa-comments"></i> Enter Chat Room
-                </button>
-                <button onclick="window.location.href='call.html'" class="hero-btn btn-video">
-                    <i class="fas fa-video"></i> Video Call
-                </button>
-                <button onclick="logout()" class="hero-btn btn-logout">
-                    <i class="fas fa-sign-out-alt"></i> Log Out
-                </button>
+            <div class="glass-panel members-panel fade-in delay-3" style="padding: 20px;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fas fa-globe-americas"></i> Online Users
+                    </div>
+                    <span class="live-badge">LIVE</span>
+                </div>
+                
+                <div class="online-list-wrapper">
+                    <ul id="online-users-list" style="list-style: none; padding: 0; margin: 0;">
+                        </ul>
+                </div>
             </div>
-        </div>
 
-        <div class="glass-panel members-card fade-in-up" style="animation-delay: 0.2s;">
-            <h3 style="margin-top: 0; display: flex; align-items: center; justify-content: space-between;">
-                <span><i class="fas fa-globe-americas"></i> Online</span>
-                <span class="live-indicator" style="font-size: 0.7rem; background: #00e676; color: black; padding: 2px 8px; border-radius: 10px;">LIVE</span>
-            </h3>
-            <div class="divider"></div>
-            
-            <div class="online-list-wrapper">
-                <ul id="online-users-list" style="list-style: none; padding: 0;">
-                    </ul>
-            </div>
         </div>
     </div>
 
