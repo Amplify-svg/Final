@@ -1,10 +1,11 @@
 const socket = io();
 const pageId = document.body.id; 
 
+// --- AUTH DATA ---
 const savedUser = localStorage.getItem('chatUser');
 let currentUser = savedUser ? JSON.parse(savedUser) : null;
 
-// Auth Redirects
+// Redirects
 if (!currentUser && pageId !== 'page-login') window.location.href = 'login.html';
 else if (currentUser && pageId === 'page-login') window.location.href = 'index.html';
 
@@ -22,7 +23,9 @@ function formatTimeCentral(isoString) {
     });
 }
 
-// --- LOGIN PAGE ---
+// ==========================================
+// --- PAGE: LOGIN ---
+// ==========================================
 if (pageId === 'page-login') {
     const authError = document.getElementById('auth-error');
     const handleAuth = (data) => {
@@ -48,7 +51,9 @@ if (pageId === 'page-login') {
     socket.on('loginResponse', handleAuth);
 }
 
-// --- HOME PAGE ---
+// ==========================================
+// --- PAGE: HOME ---
+// ==========================================
 if (pageId === 'page-home') {
     socket.on('loginResponse', (data) => {
         if(data.success) {
@@ -69,7 +74,9 @@ if (pageId === 'page-home') {
     });
 }
 
-// --- CHAT PAGE ---
+// ==========================================
+// --- PAGE: CHAT ROOM ---
+// ==========================================
 if (pageId === 'page-chat') {
     const messagesDiv = document.getElementById('messages');
     const msgInput = document.getElementById('msg-input');
@@ -172,6 +179,7 @@ if (pageId === 'page-chat') {
         if(el) el.remove();
     });
 
+    // Settings Modal Logic
     const modal = document.getElementById('settings-modal');
     window.toggleSettings = () => {
         modal.classList.toggle('hidden');
@@ -201,7 +209,7 @@ if (pageId === 'page-chat') {
 }
 
 // ==========================================
-// --- PAGE: VIDEO CALL (WEBRTC) ---
+// --- PAGE: VIDEO CALL (WEBRTC FIXED) ---
 // ==========================================
 if (pageId === 'page-call') {
     const localVideo = document.getElementById('local-video');
@@ -215,30 +223,33 @@ if (pageId === 'page-call') {
     let peerConnection;
     let pendingOffer;
     let callerName;
+    let iceQueue = []; // QUEUE FOR CANDIDATES
 
     // STUN Servers (Essential for different networks)
     const peerConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' }, 
-            { urls: 'stun:stun1.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
         ]
     };
 
+    // 1. Start Camera
     async function startLocalStream() {
         try {
-            // Request Camera/Mic
+            // Request Video & Audio
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
-            // Mute local video so you don't hear yourself echo
-            localVideo.muted = true; 
+            localVideo.muted = true; // Mute self to prevent feedback
         } catch (err) {
             console.error("Camera Error:", err);
-            alert("Could not access camera. Ensure you are using HTTPS or localhost.");
-            callStatus.innerText = "Camera Blocked (Check HTTPS)";
+            alert("Camera access denied or missing! Check browser permissions.");
+            callStatus.innerText = "Camera Access Failed";
         }
     }
     startLocalStream();
 
+    // 2. Refresh Online User List
     socket.on('updateUserList', (users) => {
         userList.innerHTML = '';
         users.forEach(u => {
@@ -252,21 +263,25 @@ if (pageId === 'page-call') {
         });
     });
 
-    // --- START CALL ---
+    // 3. START CALL (Caller)
     window.startCall = async (userToCall) => {
-        if (!localStream) return alert("Camera not ready yet.");
+        if (!localStream) return alert("Camera is starting, please wait...");
         callStatus.innerText = `Calling ${userToCall}...`;
         hangupBtn.disabled = false;
         
         createPeerConnection(userToCall);
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        socket.emit('call-user', { userToCall, offer });
+        try {
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('call-user', { userToCall, offer });
+        } catch (err) {
+            console.error(err);
+        }
     };
 
-    // --- INCOMING CALL ---
+    // 4. INCOMING CALL (Receiver)
     socket.on('incoming-call', (data) => {
         pendingOffer = data.offer;
         callerName = data.from;
@@ -274,8 +289,9 @@ if (pageId === 'page-call') {
         incomingModal.classList.remove('hidden');
     });
 
+    // 5. ACCEPT CALL
     window.acceptCall = async () => {
-        if (!localStream) return alert("Camera not ready yet.");
+        if (!localStream) return alert("Camera is starting, please wait...");
         incomingModal.classList.add('hidden');
         callStatus.innerText = "Connecting...";
         hangupBtn.disabled = false;
@@ -283,10 +299,20 @@ if (pageId === 'page-call') {
         createPeerConnection(callerName);
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOffer));
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        socket.emit('answer-call', { to: callerName, answer });
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOffer));
+            // FLUSH QUEUE
+            while (iceQueue.length > 0) {
+                const candidate = iceQueue.shift();
+                await peerConnection.addIceCandidate(candidate);
+            }
+
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('answer-call', { to: callerName, answer });
+        } catch (err) {
+            console.error("Error accepting call:", err);
+        }
     };
 
     window.rejectIncomingCall = () => {
@@ -294,9 +320,18 @@ if (pageId === 'page-call') {
         socket.emit('reject-call', { to: callerName });
     };
 
-    // --- SIGNALS ---
+    // 6. HANDLE SIGNALS
     socket.on('call-answered', async (data) => {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+             // FLUSH QUEUE
+             while (iceQueue.length > 0) {
+                const candidate = iceQueue.shift();
+                await peerConnection.addIceCandidate(candidate);
+            }
+        } catch (err) {
+            console.error("Error setting remote answer:", err);
+        }
     });
 
     socket.on('call-rejected', () => {
@@ -305,41 +340,49 @@ if (pageId === 'page-call') {
         endCallLogic();
     });
 
+    // --- KEY FIX: HANDLE ICE CANDIDATES QUEUE ---
     socket.on('ice-candidate', async (data) => {
-        if(peerConnection) {
-            try {
+        if (!peerConnection) return;
+        
+        try {
+            // If remote description is set, add immediately
+            if (peerConnection.remoteDescription) {
                 await peerConnection.addIceCandidate(data.candidate);
-            } catch(e) { console.error('Error adding ICE:', e); }
+            } else {
+                // Otherwise, queue it for later
+                console.log("Queueing ICE candidate...");
+                iceQueue.push(data.candidate);
+            }
+        } catch(e) { 
+            console.error('Error adding ICE:', e); 
         }
     });
 
-    // --- WEBRTC CONNECTION LOGIC ---
+    // 7. WEBRTC CONNECTION SETUP
     function createPeerConnection(remoteUser) {
+        iceQueue = []; // Reset queue
         peerConnection = new RTCPeerConnection(peerConfig);
 
-        // 1. Send ICE candidates to the other person
         peerConnection.onicecandidate = (event) => {
             if(event.candidate) {
                 socket.emit('ice-candidate', { to: remoteUser, candidate: event.candidate });
             }
         };
 
-        // 2. Listen for connection state changes (Debugging)
         peerConnection.oniceconnectionstatechange = () => {
             console.log("Connection State:", peerConnection.iceConnectionState);
             if (peerConnection.iceConnectionState === 'connected') {
                 callStatus.innerText = "Connected";
-            } else if (peerConnection.iceConnectionState === 'disconnected' || peerConnection.iceConnectionState === 'failed') {
-                callStatus.innerText = "Connection Failed/Lost";
+            } else if (peerConnection.iceConnectionState === 'disconnected') {
+                callStatus.innerText = "Disconnected";
+                endCallLogic();
             }
         };
 
-        // 3. Receive Remote Stream (FIX ADDED HERE)
         peerConnection.ontrack = (event) => {
             console.log("Stream received!");
             remoteVideo.srcObject = event.streams[0];
-            // Force play in case browser paused it
-            remoteVideo.play().catch(e => console.error("Auto-play blocked:", e)); 
+            remoteVideo.play().catch(e => console.log("Play error:", e));
         };
     }
 
