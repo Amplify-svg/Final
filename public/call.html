@@ -3,54 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Call - YIPE IT WORKS</title>
+    <title>Secure Call - Nexus</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body id="page-call" class="dark-mode">
-    <canvas id="particleCanvas"></canvas>
-
-    <div id="call-container">
+<body id="page-call">
+    <div id="call-container" class="fade-in">
         
         <div class="video-wrapper">
             <video id="remote-video" autoplay playsinline></video>
+            
             <video id="local-video" autoplay playsinline muted></video>
             
-            <div id="call-status" class="call-status">Ready to call</div>
+            <div id="call-status">Ready to connect</div>
         </div>
 
-        <div class="glass-panel" style="position: absolute; top: 20px; left: 20px; padding: 20px; width: 250px; z-index: 20; border-radius: 20px;">
+        <div class="glass-panel call-overlay-panel">
             <button onclick="window.location.href='index.html'" class="nav-btn">
-                <i class="fas fa-arrow-left"></i> Back Home
+                <i class="fas fa-arrow-left"></i> Exit to Hub
             </button>
             <div class="divider"></div>
-            <h3 style="margin: 0 0 10px 0; font-size: 0.9rem; color: #888; text-transform: uppercase;">Online Users</h3>
-            <ul id="call-users-list" style="list-style: none; padding: 0; max-height: 300px; overflow-y: auto;"></ul>
+            <h3 class="sidebar-title" style="color:#aaa;">Available Users</h3>
+            <ul id="call-users-list" style="list-style: none; padding: 0; max-height: 300px; overflow-y: auto;">
+                </ul>
         </div>
 
         <div class="call-controls">
-            <button class="control-btn"><i class="fas fa-microphone"></i></button>
-            <button class="control-btn"><i class="fas fa-video"></i></button>
+            <button class="control-btn" title="Toggle Mic"><i class="fas fa-microphone"></i></button>
+            <button class="control-btn" title="Toggle Cam"><i class="fas fa-video"></i></button>
             
-            <button id="hangup-btn" onclick="endCall()" disabled>
+            <button id="hangup-btn" onclick="endCall()" disabled title="End Call">
                 <i class="fas fa-phone-slash"></i>
             </button>
         </div>
     </div>
 
-    <div id="incoming-modal" class="hidden glass-panel centered-panel">
-        <div style="font-size: 3rem; color: #00e676; margin-bottom: 20px;">
+    <div id="incoming-modal" class="hidden glass-panel centered-panel fade-in" style="z-index: 200;">
+        <div style="font-size: 4rem; color: var(--primary); margin-bottom: 20px; filter: drop-shadow(0 0 15px var(--primary));">
             <i class="fas fa-phone-volume fa-shake"></i>
         </div>
-        <h2 id="caller-name">Incoming Call...</h2>
+        <h2 id="caller-name" style="margin-bottom: 30px;">Incoming Call...</h2>
         <div class="buttons">
-            <button onclick="acceptCall()" class="btn-glow" style="margin-right: 10px;">Accept</button>
-            <button onclick="rejectIncomingCall()" class="btn-danger" style="background: #ff4757; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1;">Decline</button>
+            <button onclick="acceptCall()" class="btn-glow" style="margin-right: 15px;">
+                <i class="fas fa-phone"></i> Accept
+            </button>
+            <button onclick="rejectIncomingCall()" class="btn-danger" style="background: #ff4757; color: white; border: none; font-weight: bold;">
+                <i class="fas fa-times"></i> Decline
+            </button>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="particles.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
