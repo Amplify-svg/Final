@@ -225,8 +225,8 @@ if (pageId === 'page-call') {
     let callerName;
     let iceQueue = [];
 
-    // ICE config: start with default STUNs, then try fetching TURN-enabled config from server
-    let peerConfig = {
+    // FIXED: Expanded STUN list for better connection on different networks
+    const peerConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
@@ -235,17 +235,6 @@ if (pageId === 'page-call') {
             { urls: 'stun:stun4.l.google.com:19302' }
         ]
     };
-
-    // Attempt to fetch a server-provided ICE configuration (may include TURN credentials).
-    // This allows the app to work across restrictive NATs when a TURN server is configured on the server.
-    const iceConfigPromise = fetch('/ice-config').then(res => res.json()).then(cfg => {
-        if (cfg && cfg.iceServers && cfg.iceServers.length) {
-            peerConfig = cfg;
-            console.log('Using ICE config from server:', peerConfig);
-        }
-    }).catch(err => {
-        console.warn('Could not load ICE config, using default STUNs', err);
-    });
 
     // 1. Start Local Camera
     async function startLocalStream() {
@@ -288,7 +277,7 @@ if (pageId === 'page-call') {
         callStatus.innerText = `Calling ${userToCall}...`;
         hangupBtn.disabled = false;
         
-        await createPeerConnection(userToCall);
+        createPeerConnection(userToCall);
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
         try {
@@ -314,7 +303,7 @@ if (pageId === 'page-call') {
         callStatus.innerText = "Connecting...";
         hangupBtn.disabled = false;
 
-        await createPeerConnection(callerName);
+        createPeerConnection(callerName);
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
         try {
@@ -359,10 +348,7 @@ if (pageId === 'page-call') {
         } catch(e) { console.error('ICE Error:', e); }
     });
 
-    async function createPeerConnection(remoteUser) {
-        // ensure we've attempted to load server-side ICE/TURN config
-        try { await iceConfigPromise; } catch(e) { /* ignore */ }
-
+    function createPeerConnection(remoteUser) {
         iceQueue = [];
         peerConnection = new RTCPeerConnection(peerConfig);
 
