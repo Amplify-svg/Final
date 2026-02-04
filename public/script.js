@@ -1,4 +1,6 @@
 const socket = io();
+socket.on('connect', () => console.log('Socket connected:', socket.id));
+socket.on('connect_error', (err) => console.error('Socket connect_error:', err));
 const pageId = document.body.id; 
 
 // --- AUTH DATA ---
@@ -262,9 +264,12 @@ if (pageId === 'page-call') {
 
     async function startLocalStream() {
         try {
+            console.log('Requesting local media...');
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
             localVideo.muted = true; 
+            console.log('Local media started');
+            callStatus.innerText = "Ready";
         } catch (err) {
             console.error("Camera Error:", err);
             alert("Camera access denied.");
@@ -279,6 +284,7 @@ if (pageId === 'page-call') {
     }
 
     socket.on('updateUserList', (users) => {
+        console.log('Call page - updateUserList:', users);
         userList.innerHTML = '';
         users.forEach(u => {
             if (u === currentUser.username) return;
@@ -293,6 +299,7 @@ if (pageId === 'page-call') {
     });
 
     window.startCall = async (userToCall) => {
+        console.log('startCall() =>', userToCall);
         if (!localStream) return alert("Camera not ready.");
         initRemoteStream();
         callStatus.innerText = `Calling ${userToCall}...`;
@@ -304,11 +311,13 @@ if (pageId === 'page-call') {
         try {
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
+            console.log('Emitting call-user to', userToCall);
             socket.emit('call-user', { userToCall, offer });
         } catch (err) { console.error(err); }
     };
 
     socket.on('incoming-call', (data) => {
+        console.log('incoming-call received:', data);
         pendingOffer = data.offer;
         callerName = data.from;
         document.getElementById('caller-name').innerText = `Incoming from ${callerName}`;
@@ -316,6 +325,7 @@ if (pageId === 'page-call') {
     });
 
     window.acceptCall = async () => {
+        console.log('acceptCall() from:', callerName);
         if (!localStream) return alert("Camera not ready.");
         initRemoteStream();
         incomingModal.classList.add('hidden');
@@ -331,6 +341,7 @@ if (pageId === 'page-call') {
             
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
+            console.log('Sending answer to', callerName);
             socket.emit('answer-call', { to: callerName, answer });
         } catch (err) { console.error(err); }
     };
@@ -341,6 +352,7 @@ if (pageId === 'page-call') {
     };
 
     socket.on('call-answered', async (data) => {
+        console.log('call-answered received:', data);
         try {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
             while (iceQueue.length > 0) await peerConnection.addIceCandidate(iceQueue.shift());
@@ -355,6 +367,7 @@ if (pageId === 'page-call') {
     });
 
     socket.on('ice-candidate', async (data) => {
+        console.log('remote ice-candidate:', data);
         if (!peerConnection) {
             earlyCandidates.push(data.candidate);
             return;
@@ -366,6 +379,7 @@ if (pageId === 'page-call') {
     });
 
     function createPeerConnection(remoteUser) {
+        console.log('createPeerConnection() for', remoteUser);
         iceQueue = [];
         peerConnection = new RTCPeerConnection(peerConfig);
         if (earlyCandidates.length > 0) {
@@ -374,10 +388,12 @@ if (pageId === 'page-call') {
         }
 
         peerConnection.onicecandidate = (event) => {
+            console.log('Local ICE candidate:', event.candidate);
             if(event.candidate) socket.emit('ice-candidate', { to: remoteUser, candidate: event.candidate });
         };
 
         peerConnection.oniceconnectionstatechange = () => {
+            console.log('ICE connection state:', peerConnection.iceConnectionState);
             if (peerConnection.iceConnectionState === 'connected') callStatus.innerText = "Connected";
             else if (peerConnection.iceConnectionState === 'disconnected') {
                 callStatus.innerText = "Disconnected";
@@ -386,6 +402,7 @@ if (pageId === 'page-call') {
         };
 
         peerConnection.ontrack = (event) => {
+            console.log('Remote track received:', event.track);
             if (remoteStream) {
                 remoteStream.addTrack(event.track);
                 if (remoteVideo.paused) remoteVideo.play().catch(e => console.error(e));

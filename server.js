@@ -16,6 +16,7 @@ let messageHistory = [];
 const connectedSockets = {}; // socket.id -> username
 
 io.on('connection', (socket) => {
+    console.log('Socket connected:', socket.id);
     
     // Helper: Get list of unique usernames
     const getOnlineNames = () => [...new Set(Object.values(connectedSockets))];
@@ -161,35 +162,48 @@ io.on('connection', (socket) => {
 
     socket.on('call-user', ({ userToCall, offer }) => {
         const caller = connectedSockets[socket.id];
+        console.log(`call-user: ${caller} -> ${userToCall}`);
         const targetSocket = findSocketId(userToCall);
         if(targetSocket) {
             io.to(targetSocket).emit('incoming-call', { from: caller, offer });
+        } else {
+            console.warn('call-user: targetSocket not found for', userToCall);
         }
     });
 
     socket.on('answer-call', ({ to, answer }) => {
+        console.log('answer-call to:', to);
         const targetSocket = findSocketId(to);
         if(targetSocket) {
             io.to(targetSocket).emit('call-answered', { answer });
+        } else {
+            console.warn('answer-call: targetSocket not found for', to);
         }
     });
 
     socket.on('ice-candidate', ({ to, candidate }) => {
+        console.log('ice-candidate: to=', to, 'candidate=', candidate && candidate.candidate ? candidate.candidate.substring(0,40) : candidate);
         const targetSocket = findSocketId(to);
         if(targetSocket) {
             io.to(targetSocket).emit('ice-candidate', { candidate });
+        } else {
+            console.warn('ice-candidate: targetSocket not found for', to);
         }
     });
 
     socket.on('reject-call', ({ to }) => {
+        console.log('reject-call to:', to);
         const targetSocket = findSocketId(to);
         if(targetSocket) {
             io.to(targetSocket).emit('call-rejected');
+        } else {
+            console.warn('reject-call: targetSocket not found for', to);
         }
     });
 
     socket.on('disconnect', () => {
         const username = connectedSockets[socket.id];
+        console.log('Socket disconnected:', socket.id, 'username:', username);
         if (username) {
             // We do NOT emit "left chat" here because script.js sends 'chatLeave' 
             // automatically when the tab closes or navigates.
