@@ -10,21 +10,18 @@ const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- DATA ---
+// --- DATA STORAGE ---
 const users = {}; 
 let messageHistory = []; 
-const connectedSockets = {}; 
+const connectedSockets = {}; // socket.id -> username
 
 io.on('connection', (socket) => {
     
-    // Helper to get list of names
+    // Helper: Get list of unique usernames
     const getOnlineNames = () => [...new Set(Object.values(connectedSockets))];
+    const broadcastOnlineUsers = () => io.emit('updateUserList', getOnlineNames());
 
-    const broadcastOnlineUsers = () => {
-        io.emit('updateUserList', getOnlineNames());
-    };
-
-    // --- AUTH ---
+    // --- AUTHENTICATION ---
     socket.on('register', ({ username, password }) => {
         if (users[username]) {
             socket.emit('registerResponse', { success: false, message: 'Username taken.' });
@@ -35,7 +32,6 @@ io.on('connection', (socket) => {
             socket.emit('registerResponse', { success: true, username, pfp: users[username].pfp });
             io.emit('message', createSystemMessage(`${username} has joined.`));
             
-            // Send list to everyone, including new user
             broadcastOnlineUsers();
         }
     });
@@ -46,12 +42,8 @@ io.on('connection', (socket) => {
             connectedSockets[socket.id] = username;
             
             socket.emit('loginResponse', { success: true, username, pfp: user.pfp });
-            
-            // FIX: Send the list immediately to the user who just logged in
-            socket.emit('updateUserList', getOnlineNames()); 
-            
-            // Then tell everyone else
-            broadcastOnlineUsers();
+            socket.emit('updateUserList', getOnlineNames()); // Send list immediately to user
+            broadcastOnlineUsers(); // Update everyone else
         } else {
             socket.emit('loginResponse', { success: false, message: 'Invalid credentials.' });
         }
@@ -79,6 +71,7 @@ io.on('connection', (socket) => {
     socket.on('markSeen', (msgId) => {
         const username = connectedSockets[socket.id];
         if (!username) return;
+
         const msg = messageHistory.find(m => m.id === msgId);
         if (msg && !msg.seenBy.includes(username)) {
             msg.seenBy.push(username);
@@ -89,6 +82,7 @@ io.on('connection', (socket) => {
     socket.on('markAllSeen', () => {
         const username = connectedSockets[socket.id];
         if (!username) return;
+        
         messageHistory.slice(-20).forEach(msg => {
             if (!msg.seenBy.includes(username)) {
                 msg.seenBy.push(username);
@@ -130,6 +124,7 @@ io.on('connection', (socket) => {
             socket.emit('updateProfileResponse', { success: false, message: 'Username taken' });
             return;
         }
+
         const oldData = users[oldName];
         if (newUsername !== oldName) delete users[oldName];
 
@@ -137,12 +132,49 @@ io.on('connection', (socket) => {
             password: newPassword || oldData.password,
             pfp: newPfp || oldData.pfp
         };
-        connectedSockets[socket.id] = newUsername;
 
+        connectedSockets[socket.id] = newUsername;
         socket.emit('updateProfileResponse', { success: true, username: newUsername, pfp: users[newUsername].pfp });
+        
         if (newUsername !== oldName) {
             io.emit('message', createSystemMessage(`${oldName} is now ${newUsername}.`));
             broadcastOnlineUsers();
+        }
+    });
+
+    // ===========================================
+    // --- VIDEO CALL SIGNALING (WEBRTC) ---
+    // ===========================================
+    function findSocketId(username) {
+        return Object.keys(connectedSockets).find(id => connectedSockets[id] === username);
+    }
+
+    socket.on('call-user', ({ userToCall, offer }) => {
+        const caller = connectedSockets[socket.id];
+        const targetSocket = findSocketId(userToCall);
+        if(targetSocket) {
+            io.to(targetSocket).emit('incoming-call', { from: caller, offer });
+        }
+    });
+
+    socket.on('answer-call', ({ to, answer }) => {
+        const targetSocket = findSocketId(to);
+        if(targetSocket) {
+            io.to(targetSocket).emit('call-answered', { answer });
+        }
+    });
+
+    socket.on('ice-candidate', ({ to, candidate }) => {
+        const targetSocket = findSocketId(to);
+        if(targetSocket) {
+            io.to(targetSocket).emit('ice-candidate', { candidate });
+        }
+    });
+
+    socket.on('reject-call', ({ to }) => {
+        const targetSocket = findSocketId(to);
+        if(targetSocket) {
+            io.to(targetSocket).emit('call-rejected');
         }
     });
 

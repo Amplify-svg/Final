@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Chat Room</title>
+    <title>Chat - Particle Chat</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -10,51 +10,45 @@
     <canvas id="particleCanvas"></canvas>
 
     <div id="chat-container">
-        <div class="chat-sidebar glass-panel">
+        <div class="glass-panel chat-sidebar">
             <button onclick="window.location.href='index.html'" class="nav-btn">
                 <i class="fas fa-home"></i> Home
             </button>
-
+            <button onclick="window.location.href='call.html'" class="nav-btn">
+                <i class="fas fa-video"></i> Video Call
+            </button>
+            
             <div class="divider"></div>
-
-            <h3>Online Members</h3>
+            
+            <h3>Online Users</h3>
             <ul id="online-users-list"></ul>
-
-            <div class="spacer"></div>
 
             <button onclick="toggleSettings()" class="nav-btn settings-btn">
                 <i class="fas fa-cog"></i> Settings
             </button>
             <button onclick="logout()" class="nav-btn logout-btn">
-                <i class="fas fa-sign-out-alt"></i> Log Out
+                <i class="fas fa-sign-out-alt"></i> Logout
             </button>
         </div>
 
-        <div class="chat-main">
+        <div class="glass-panel chat-main">
             <div id="messages"></div>
-            <div class="typing-indicator" id="typing-indicator"></div>
+            <div id="typing-indicator"></div>
             <form id="chat-form">
-                <input type="text" id="msg-input" placeholder="Type a message..." autocomplete="off">
-                <button type="submit" id="send-btn"><i class="fas fa-paper-plane"></i></button>
+                <input id="msg-input" type="text" placeholder="Type a message..." autocomplete="off" />
+                <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
             </form>
         </div>
     </div>
 
     <div id="settings-modal" class="hidden glass-panel centered-panel">
-        <h2>Profile Settings</h2>
-        <div style="text-align: left;">
-            <label>New Username</label>
-            <input type="text" id="set-new-username" placeholder="Enter new username">
-            
-            <label>New Password (Optional)</label>
-            <input type="password" id="set-new-password" placeholder="Enter new password">
-            
-            <label>Profile Picture URL</label>
-            <input type="text" id="set-new-pfp" placeholder="https://...">
-        </div>
+        <h2>Edit Profile</h2>
+        <input type="text" id="set-new-username" placeholder="New Username">
+        <input type="text" id="set-new-pfp" placeholder="New PFP URL">
+        <input type="password" id="set-new-password" placeholder="New Password">
         <div class="buttons">
-            <button onclick="saveSettings()">Save Changes</button>
-            <button onclick="toggleSettings()" style="background:#555">Cancel</button>
+            <button onclick="saveSettings()" class="btn-primary">Save</button>
+            <button onclick="toggleSettings()" class="btn-danger">Cancel</button>
         </div>
     </div>
 
