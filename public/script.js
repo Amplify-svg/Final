@@ -179,7 +179,6 @@ if (pageId === 'page-chat') {
         if(el) el.remove();
     });
 
-    // Settings Modal Logic
     const modal = document.getElementById('settings-modal');
     window.toggleSettings = () => {
         modal.classList.toggle('hidden');
@@ -223,9 +222,8 @@ if (pageId === 'page-call') {
     let peerConnection;
     let pendingOffer;
     let callerName;
-    let iceQueue = []; // QUEUE FOR CANDIDATES
+    let iceQueue = [];
 
-    // STUN Servers (Essential for different networks)
     const peerConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' }, 
@@ -234,22 +232,19 @@ if (pageId === 'page-call') {
         ]
     };
 
-    // 1. Start Camera
     async function startLocalStream() {
         try {
-            // Request Video & Audio
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
-            localVideo.muted = true; // Mute self to prevent feedback
+            localVideo.muted = true;
         } catch (err) {
             console.error("Camera Error:", err);
-            alert("Camera access denied or missing! Check browser permissions.");
-            callStatus.innerText = "Camera Access Failed";
+            alert("Camera access denied. Ensure you are using HTTPS.");
+            callStatus.innerText = "Camera Blocked";
         }
     }
     startLocalStream();
 
-    // 2. Refresh Online User List
     socket.on('updateUserList', (users) => {
         userList.innerHTML = '';
         users.forEach(u => {
@@ -263,9 +258,8 @@ if (pageId === 'page-call') {
         });
     });
 
-    // 3. START CALL (Caller)
     window.startCall = async (userToCall) => {
-        if (!localStream) return alert("Camera is starting, please wait...");
+        if (!localStream) return alert("Camera not ready.");
         callStatus.innerText = `Calling ${userToCall}...`;
         hangupBtn.disabled = false;
         
@@ -276,12 +270,9 @@ if (pageId === 'page-call') {
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
             socket.emit('call-user', { userToCall, offer });
-        } catch (err) {
-            console.error(err);
-        }
+        } catch (err) { console.error(err); }
     };
 
-    // 4. INCOMING CALL (Receiver)
     socket.on('incoming-call', (data) => {
         pendingOffer = data.offer;
         callerName = data.from;
@@ -289,9 +280,8 @@ if (pageId === 'page-call') {
         incomingModal.classList.remove('hidden');
     });
 
-    // 5. ACCEPT CALL
     window.acceptCall = async () => {
-        if (!localStream) return alert("Camera is starting, please wait...");
+        if (!localStream) return alert("Camera not ready.");
         incomingModal.classList.add('hidden');
         callStatus.innerText = "Connecting...";
         hangupBtn.disabled = false;
@@ -301,18 +291,13 @@ if (pageId === 'page-call') {
 
         try {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOffer));
-            // FLUSH QUEUE
             while (iceQueue.length > 0) {
-                const candidate = iceQueue.shift();
-                await peerConnection.addIceCandidate(candidate);
+                await peerConnection.addIceCandidate(iceQueue.shift());
             }
-
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             socket.emit('answer-call', { to: callerName, answer });
-        } catch (err) {
-            console.error("Error accepting call:", err);
-        }
+        } catch (err) { console.error(err); }
     };
 
     window.rejectIncomingCall = () => {
@@ -320,18 +305,13 @@ if (pageId === 'page-call') {
         socket.emit('reject-call', { to: callerName });
     };
 
-    // 6. HANDLE SIGNALS
     socket.on('call-answered', async (data) => {
         try {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-             // FLUSH QUEUE
-             while (iceQueue.length > 0) {
-                const candidate = iceQueue.shift();
-                await peerConnection.addIceCandidate(candidate);
+            while (iceQueue.length > 0) {
+                await peerConnection.addIceCandidate(iceQueue.shift());
             }
-        } catch (err) {
-            console.error("Error setting remote answer:", err);
-        }
+        } catch (err) { console.error(err); }
     });
 
     socket.on('call-rejected', () => {
@@ -340,27 +320,19 @@ if (pageId === 'page-call') {
         endCallLogic();
     });
 
-    // --- KEY FIX: HANDLE ICE CANDIDATES QUEUE ---
     socket.on('ice-candidate', async (data) => {
         if (!peerConnection) return;
-        
         try {
-            // If remote description is set, add immediately
             if (peerConnection.remoteDescription) {
                 await peerConnection.addIceCandidate(data.candidate);
             } else {
-                // Otherwise, queue it for later
-                console.log("Queueing ICE candidate...");
                 iceQueue.push(data.candidate);
             }
-        } catch(e) { 
-            console.error('Error adding ICE:', e); 
-        }
+        } catch(e) { console.error('ICE Error:', e); }
     });
 
-    // 7. WEBRTC CONNECTION SETUP
     function createPeerConnection(remoteUser) {
-        iceQueue = []; // Reset queue
+        iceQueue = [];
         peerConnection = new RTCPeerConnection(peerConfig);
 
         peerConnection.onicecandidate = (event) => {
@@ -370,7 +342,6 @@ if (pageId === 'page-call') {
         };
 
         peerConnection.oniceconnectionstatechange = () => {
-            console.log("Connection State:", peerConnection.iceConnectionState);
             if (peerConnection.iceConnectionState === 'connected') {
                 callStatus.innerText = "Connected";
             } else if (peerConnection.iceConnectionState === 'disconnected') {
@@ -379,10 +350,15 @@ if (pageId === 'page-call') {
             }
         };
 
+        // --- FIX IS HERE ---
         peerConnection.ontrack = (event) => {
-            console.log("Stream received!");
-            remoteVideo.srcObject = event.streams[0];
-            remoteVideo.play().catch(e => console.log("Play error:", e));
+            const newStream = event.streams[0];
+            // Only set srcObject if it is not already set to this stream
+            if (remoteVideo.srcObject !== newStream) {
+                console.log("Stream received!");
+                remoteVideo.srcObject = newStream;
+                remoteVideo.play().catch(e => console.log("Play error:", e));
+            }
         };
     }
 
