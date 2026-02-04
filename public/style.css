@@ -379,4 +379,16 @@ input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(0, 230, 1
 .btn-reject { background: var(--danger); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; }
 
 .settings-input-group { margin-bottom: 15px; text-align: left; }
+
+/* --- PARTICLES: keep canvas as a fixed background so it doesn't push content down --- */
+#particleCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+}
+
 .settings-label { font-size: 0.8rem; color: #aaa; margin-bottom: 5px; display: block; }
