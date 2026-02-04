@@ -75,7 +75,7 @@ if (pageId === 'page-home') {
 }
 
 // ==========================================
-// --- PAGE: CHAT ROOM ---
+// --- PAGE: CHAT ROOM (UPDATED FOR BUBBLES) ---
 // ==========================================
 if (pageId === 'page-chat') {
     const messagesDiv = document.getElementById('messages');
@@ -115,15 +115,19 @@ if (pageId === 'page-chat') {
         } else {
             const div = document.createElement('div');
             div.id = `msg-${data.id}`;
+            
+            // --- NEW: Determine if this is ME or OTHER ---
+            const isMe = data.user === currentUser.username;
             div.classList.add('message');
+            div.classList.add(isMe ? 'me' : 'other');
             
             if (data.user === 'System') {
-                div.innerHTML = `<div class="system-msg"><span>${data.text}</span></div>`;
+                div.innerHTML = `<div class="system-msg" style="text-align:center; color:#666; font-size:0.8rem;">${data.text}</div>`;
             } else {
                 const pfp = data.pfp || 'https://i.pravatar.cc/150';
                 const timeStr = formatTimeCentral(data.timestamp);
-                const canDelete = data.user === currentUser.username ? 
-                    `<span class="delete-btn" onclick="deleteMsg('${data.id}')"><i class="fas fa-trash"></i></span>` : '';
+                const canDelete = isMe ? 
+                    `<span class="delete-btn" onclick="deleteMsg('${data.id}')" style="margin-left:10px; cursor:pointer;"><i class="fas fa-trash"></i></span>` : '';
                 
                 div.innerHTML = `
                     <div class="msg-top">
@@ -208,7 +212,7 @@ if (pageId === 'page-chat') {
 }
 
 // ==========================================
-// --- PAGE: VIDEO CALL (NETWORK FIX APPLIED) ---
+// --- PAGE: VIDEO CALL ---
 // ==========================================
 if (pageId === 'page-call') {
     const localVideo = document.getElementById('local-video');
@@ -224,9 +228,8 @@ if (pageId === 'page-call') {
     let pendingOffer;
     let callerName;
     
-    // QUEUES TO SAVE PACKETS
-    let iceQueue = [];         // Candidates waiting for Remote Description
-    let earlyCandidates = [];  // Candidates waiting for User to click "Accept"
+    let iceQueue = [];
+    let earlyCandidates = [];
 
     const peerConfig = {
         iceServers: [
@@ -238,7 +241,6 @@ if (pageId === 'page-call') {
         ]
     };
 
-    // 1. Start Local Camera
     async function startLocalStream() {
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -246,7 +248,7 @@ if (pageId === 'page-call') {
             localVideo.muted = true; 
         } catch (err) {
             console.error("Camera Error:", err);
-            alert("Camera access denied. Ensure you are using HTTPS.");
+            alert("Camera access denied.");
             callStatus.innerText = "Camera Blocked";
         }
     }
@@ -262,15 +264,18 @@ if (pageId === 'page-call') {
         users.forEach(u => {
             if (u === currentUser.username) return;
             const li = document.createElement('li');
+            li.style.display = 'flex';
+            li.style.justifyContent = 'space-between';
+            li.style.alignItems = 'center';
+            li.style.marginBottom = '10px';
             li.innerHTML = `
-                <span><i class="fas fa-circle" style="color:#00e676"></i> ${u}</span>
-                <button class="call-icon-btn" onclick="startCall('${u}')"><i class="fas fa-video"></i></button>
+                <span><i class="fas fa-circle" style="color:#00e676; margin-right:5px;"></i> ${u}</span>
+                <button class="call-icon-btn" onclick="startCall('${u}')" style="background:#00e676; border:none; width:30px; height:30px; border-radius:50%; cursor:pointer;"><i class="fas fa-video"></i></button>
             `;
             userList.appendChild(li);
         });
     });
 
-    // 3. START CALL
     window.startCall = async (userToCall) => {
         if (!localStream) return alert("Camera not ready.");
         
@@ -295,7 +300,6 @@ if (pageId === 'page-call') {
         incomingModal.classList.remove('hidden');
     });
 
-    // 4. ACCEPT CALL
     window.acceptCall = async () => {
         if (!localStream) return alert("Camera not ready.");
         
@@ -309,12 +313,9 @@ if (pageId === 'page-call') {
 
         try {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOffer));
-            
-            // FLUSH THE QUEUE: Process all candidates that arrived before we clicked Accept
             while (iceQueue.length > 0) {
                 await peerConnection.addIceCandidate(iceQueue.shift());
             }
-            
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             socket.emit('answer-call', { to: callerName, answer });
@@ -341,15 +342,11 @@ if (pageId === 'page-call') {
         endCallLogic();
     });
 
-    // --- CRITICAL FIX: HANDLE EARLY CANDIDATES ---
     socket.on('ice-candidate', async (data) => {
-        // If connection doesn't exist yet (user hasn't clicked accept), SAVE IT.
         if (!peerConnection) {
-            console.log("Saving early candidate...");
             earlyCandidates.push(data.candidate);
             return;
         }
-        
         try {
             if (peerConnection.remoteDescription) {
                 await peerConnection.addIceCandidate(data.candidate);
@@ -362,10 +359,7 @@ if (pageId === 'page-call') {
     function createPeerConnection(remoteUser) {
         iceQueue = [];
         peerConnection = new RTCPeerConnection(peerConfig);
-
-        // MOVE EARLY CANDIDATES TO THE MAIN QUEUE
         if (earlyCandidates.length > 0) {
-            console.log(`Processing ${earlyCandidates.length} saved candidates`);
             earlyCandidates.forEach(c => iceQueue.push(c));
             earlyCandidates = [];
         }
@@ -386,12 +380,9 @@ if (pageId === 'page-call') {
         };
 
         peerConnection.ontrack = (event) => {
-            console.log("Track received:", event.track.kind);
             if (remoteStream) {
                 remoteStream.addTrack(event.track);
-                if (remoteVideo.paused) {
-                     remoteVideo.play().catch(e => console.error("Auto-play failed", e));
-                }
+                if (remoteVideo.paused) remoteVideo.play().catch(e => console.error(e));
             }
         };
     }
