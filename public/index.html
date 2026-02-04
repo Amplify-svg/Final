@@ -7,27 +7,45 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Button Styles specifically for Home */
-        .action-buttons { display: flex; flex-direction: column; gap: 20px; width: 100%; margin-top: 10px; }
-        
-        .hero-btn {
-            display: flex; align-items: center; justify-content: center;
-            padding: 22px; /* Chunkier buttons */
-            border-radius: 16px; border: none;
-            font-size: 1.3rem; font-weight: bold;
-            cursor: pointer; text-decoration: none; color: white;
-            transition: 0.3s;
+        /* Specific tweaks for Home Page spacing */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            margin-top: 20px;
         }
-        .hero-btn i { margin-right: 15px; font-size: 1.5rem; }
-        .hero-btn:hover { transform: translateY(-5px); filter: brightness(1.1); }
+        
+        /* Hero Buttons with Gradients */
+        .hero-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            color: white;
+            width: 100%;
+        }
+        .hero-btn i { margin-right: 10px; font-size: 1.3rem; }
+        .hero-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
         
         .btn-chat { background: linear-gradient(135deg, #00b09b, #96c93d); color: black; }
         .btn-video { background: linear-gradient(135deg, #667eea, #764ba2); }
-        .btn-logout { background: rgba(255, 71, 87, 0.15); color: #ff6b81; border: 1px solid rgba(255, 71, 87, 0.2); }
-        .btn-logout:hover { background: #ff4757; color: white; border-color: transparent; }
+        .btn-logout { background: rgba(255, 71, 87, 0.2); color: #ff6b81; border: 1px solid rgba(255, 71, 87, 0.3); }
+        .btn-logout:hover { background: #ff4757; color: white; }
 
+        /* Animation for entrance */
         .fade-in-up { animation: fadeInUp 0.8s ease-out; }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body id="page-home" class="dark-mode">
@@ -36,13 +54,13 @@
     <div class="home-container">
         
         <div class="glass-panel profile-card fade-in-up">
-            <div class="profile-header">
-                <img id="display-pfp" class="profile-avatar" src="" alt="Profile">
+            <div class="profile-header" style="flex-direction: column; text-align: center; gap: 10px;">
+                <img id="display-pfp" class="profile-avatar" src="" alt="Profile" style="width: 100px; height: 100px; margin: 0 auto;">
                 <div>
-                    <h2 style="margin: 0; font-weight: 400; color: #aaa; font-size: 1.2rem;">Welcome back,</h2>
-                    <h1 id="display-name" class="glow-text">User</h1>
-                    <div style="font-size: 0.9rem; color: #00e676; margin-top: 8px;">
-                        <i class="fas fa-circle" style="font-size: 0.7rem;"></i> Active Now
+                    <h2 style="margin: 0; font-weight: 400; color: #aaa; font-size: 1rem;">Welcome back,</h2>
+                    <h1 id="display-name" class="glow-text" style="font-size: 2rem; margin-top: 5px;">User</h1>
+                    <div style="font-size: 0.8rem; color: #00e676; margin-top: 5px;">
+                        <i class="fas fa-circle" style="font-size: 0.6rem;"></i> Active Now
                     </div>
                 </div>
             </div>
@@ -63,14 +81,14 @@
         </div>
 
         <div class="glass-panel members-card fade-in-up" style="animation-delay: 0.2s;">
-            <h3 style="margin-top: 0; display: flex; align-items: center; justify-content: space-between; font-size: 1.2rem;">
+            <h3 style="margin-top: 0; display: flex; align-items: center; justify-content: space-between;">
                 <span><i class="fas fa-globe-americas"></i> Online</span>
-                <span style="font-size: 0.8rem; background: #00e676; color: black; padding: 4px 10px; border-radius: 12px; font-weight:bold;">LIVE</span>
+                <span class="live-indicator" style="font-size: 0.7rem; background: #00e676; color: black; padding: 2px 8px; border-radius: 10px;">LIVE</span>
             </h3>
             <div class="divider"></div>
             
             <div class="online-list-wrapper">
-                <ul id="online-users-list">
+                <ul id="online-users-list" style="list-style: none; padding: 0;">
                     </ul>
             </div>
         </div>

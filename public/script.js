@@ -5,17 +5,11 @@ const pageId = document.body.id;
 const savedUser = localStorage.getItem('chatUser');
 let currentUser = savedUser ? JSON.parse(savedUser) : null;
 
-// --- GLOBAL REDIRECTS ---
-if (!currentUser && pageId !== 'page-login') {
-    window.location.href = 'login.html';
-} else if (currentUser && pageId === 'page-login') {
-    window.location.href = 'index.html';
-}
+// Redirects
+if (!currentUser && pageId !== 'page-login') window.location.href = 'login.html';
+else if (currentUser && pageId === 'page-login') window.location.href = 'index.html';
 
-// Auto-login on socket connect if user exists
-if (currentUser) {
-    socket.emit('login', currentUser);
-}
+if (currentUser) socket.emit('login', currentUser);
 
 window.logout = function() {
     localStorage.removeItem('chatUser');
@@ -34,76 +28,46 @@ function formatTimeCentral(isoString) {
 // ==========================================
 if (pageId === 'page-login') {
     const authError = document.getElementById('auth-error');
-    
     const handleAuth = (data) => {
         if (data.success) {
             const pass = document.getElementById('password').value;
-            // Save full creds for auto-relogin
-            localStorage.setItem('chatUser', JSON.stringify({ 
-                username: data.username, 
-                password: pass,
-                pfp: data.pfp || 'https://api.dicebear.com/7.x/adventurer/svg?seed=' + data.username
-            }));
+            localStorage.setItem('chatUser', JSON.stringify({ username: data.username, password: pass }));
             window.location.href = 'index.html';
         } else {
-            if(authError) authError.innerText = data.message;
-            else alert(data.message);
+            authError.innerText = data.message;
         }
     };
-
     window.register = () => {
         const u = document.getElementById('username').value.trim();
         const p = document.getElementById('password').value.trim();
         if(u && p) socket.emit('register', { username: u, password: p });
     };
-
     window.login = () => {
         const u = document.getElementById('username').value.trim();
         const p = document.getElementById('password').value.trim();
         if(u && p) socket.emit('login', { username: u, password: p });
     };
-
     socket.on('registerResponse', handleAuth);
     socket.on('loginResponse', handleAuth);
 }
 
 // ==========================================
-// --- PAGE: HOME (Updated for Big UI) ---
+// --- PAGE: HOME ---
 // ==========================================
 if (pageId === 'page-home') {
-    // 1. Immediate Populate (Don't wait for socket)
-    if (currentUser) {
-        const nameEl = document.getElementById('display-name');
-        const pfpEl = document.getElementById('display-pfp');
-        
-        if(nameEl) nameEl.innerText = currentUser.username;
-        // Use saved PFP or generate one
-        if(pfpEl) pfpEl.src = currentUser.pfp || `https://api.dicebear.com/7.x/adventurer/svg?seed=${currentUser.username}`;
-    }
-
-    // 2. Update if server sends fresh data
     socket.on('loginResponse', (data) => {
         if(data.success) {
             document.getElementById('display-name').innerText = data.username;
-            const newPfp = data.pfp || `https://api.dicebear.com/7.x/adventurer/svg?seed=${data.username}`;
-            document.getElementById('display-pfp').src = newPfp;
-            
-            // Update local storage to match
-            currentUser.pfp = newPfp;
-            localStorage.setItem('chatUser', JSON.stringify(currentUser));
+            document.getElementById('display-pfp').src = data.pfp || 'https://i.pravatar.cc/150';
         }
     });
-
-    // 3. Online List
     socket.on('updateUserList', (users) => {
         const list = document.getElementById('online-users-list');
         if(list) {
             list.innerHTML = '';
             users.forEach(u => {
                 const li = document.createElement('li');
-                // Check if it's me
-                const isMe = (u === currentUser.username) ? ' (You)' : '';
-                li.innerHTML = `<i class="fas fa-circle" style="color:#00e676; font-size: 0.6rem;"></i> ${u}${isMe}`;
+                li.innerHTML = `<i class="fas fa-circle"></i> ${u}`;
                 list.appendChild(li);
             });
         }
@@ -111,7 +75,7 @@ if (pageId === 'page-home') {
 }
 
 // ==========================================
-// --- PAGE: CHAT ROOM ---
+// --- PAGE: CHAT ROOM (UPDATED FOR BUBBLES) ---
 // ==========================================
 if (pageId === 'page-chat') {
     const messagesDiv = document.getElementById('messages');
@@ -120,7 +84,6 @@ if (pageId === 'page-chat') {
     const typingDiv = document.getElementById('typing-indicator');
     let typingTimeout;
 
-    // Visibility Logic
     if (!document.hidden) socket.emit('markAllSeen');
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden) socket.emit('markAllSeen');
@@ -128,7 +91,6 @@ if (pageId === 'page-chat') {
 
     socket.emit('loadHistory');
 
-    // Chat Sidebar User List
     socket.on('updateUserList', (users) => {
         if(onlineList) {
             onlineList.innerHTML = '';
@@ -143,12 +105,9 @@ if (pageId === 'page-chat') {
 
     const updateOrAppendMessage = (data) => {
         const existing = document.getElementById(`msg-${data.id}`);
-        // Filter out my own name from "Seen By"
         const viewers = data.seenBy ? data.seenBy.filter(u => u !== data.user) : [];
         let seenText = '';
-        if (viewers.length > 0) {
-            seenText = viewers.length > 3 ? `Seen by ${viewers.length}` : `Seen: ${viewers.join(', ')}`;
-        }
+        if (viewers.length > 0) seenText = viewers.length > 5 ? `Seen by ${viewers.length} people` : `Seen by: ${viewers.join(', ')}`;
 
         if (existing) {
             const seenDiv = existing.querySelector('.seen-status');
@@ -157,40 +116,36 @@ if (pageId === 'page-chat') {
             const div = document.createElement('div');
             div.id = `msg-${data.id}`;
             
+            // --- NEW: Determine if this is ME or OTHER ---
             const isMe = data.user === currentUser.username;
             div.classList.add('message');
             div.classList.add(isMe ? 'me' : 'other');
             
             if (data.user === 'System') {
-                div.innerHTML = `<div style="text-align:center; color:#666; font-size:0.8rem; margin: 10px 0;">${data.text}</div>`;
+                div.innerHTML = `<div class="system-msg" style="text-align:center; color:#666; font-size:0.8rem;">${data.text}</div>`;
             } else {
-                const pfp = data.pfp || `https://api.dicebear.com/7.x/adventurer/svg?seed=${data.user}`;
+                const pfp = data.pfp || 'https://i.pravatar.cc/150';
                 const timeStr = formatTimeCentral(data.timestamp);
-                
-                // Trash icon only for me
-                const deleteHtml = isMe ? 
-                    `<i class="fas fa-trash" onclick="deleteMsg('${data.id}')" style="margin-left:10px; cursor:pointer; opacity:0.5; font-size:0.8rem;"></i>` : '';
+                const canDelete = isMe ? 
+                    `<span class="delete-btn" onclick="deleteMsg('${data.id}')" style="margin-left:10px; cursor:pointer;"><i class="fas fa-trash"></i></span>` : '';
                 
                 div.innerHTML = `
                     <div class="msg-top">
                         <img src="${pfp}" class="msg-pfp">
                         <div class="msg-bubble">
                             <div class="msg-header">
-                                <span class="username">${isMe ? '' : data.user}</span>
+                                <span class="username">${data.user}</span>
                                 <span class="timestamp">${timeStr}</span>
-                                ${deleteHtml}
                             </div>
                             <div style="word-break:break-word">${data.text}</div>
                         </div>
+                        ${canDelete}
                     </div>
                     <div class="seen-status">${seenText}</div>
                 `;
             }
             messagesDiv.appendChild(div);
-            // Auto scroll to bottom
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            
-            // Mark as seen if it's not me
             if (!document.hidden && data.user !== currentUser.username && !data.seenBy.includes(currentUser.username)) {
                 socket.emit('markSeen', data.id);
             }
@@ -205,36 +160,54 @@ if (pageId === 'page-chat') {
         if(!document.hidden) socket.emit('markAllSeen');
     });
 
-    // Typing Logic
-    if(msgInput) {
-        msgInput.addEventListener('input', () => {
-            socket.emit('typing');
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => socket.emit('stopTyping'), 1000);
-        });
-    }
+    msgInput.addEventListener('input', () => {
+        socket.emit('typing');
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => socket.emit('stopTyping'), 1000);
+    });
+    socket.on('userTyping', (u) => typingDiv.innerText = `${u} is typing...`);
+    socket.on('userStoppedTyping', () => typingDiv.innerText = '');
 
-    if(typingDiv) {
-        socket.on('userTyping', (u) => typingDiv.innerText = `${u} is typing...`);
-        socket.on('userStoppedTyping', () => typingDiv.innerText = '');
-    }
+    document.getElementById('chat-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        if(msgInput.value) {
+            socket.emit('chatMessage', msgInput.value);
+            msgInput.value = '';
+            socket.emit('stopTyping');
+        }
+    });
 
-    const chatForm = document.getElementById('chat-form');
-    if(chatForm) {
-        chatForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if(msgInput.value.trim()) {
-                socket.emit('chatMessage', msgInput.value);
-                msgInput.value = '';
-                socket.emit('stopTyping');
-            }
-        });
-    }
-
-    window.deleteMsg = (id) => { if(confirm("Delete message?")) socket.emit('deleteMessage', id); }
+    window.deleteMsg = (id) => { if(confirm("Delete?")) socket.emit('deleteMessage', id); }
     socket.on('messageDeleted', (id) => {
         const el = document.getElementById(`msg-${id}`);
         if(el) el.remove();
+    });
+
+    const modal = document.getElementById('settings-modal');
+    window.toggleSettings = () => {
+        modal.classList.toggle('hidden');
+        if(!modal.classList.contains('hidden')) {
+            document.getElementById('set-new-username').value = currentUser.username;
+        }
+    };
+    window.saveSettings = () => {
+        const n = document.getElementById('set-new-username').value;
+        const p = document.getElementById('set-new-password').value;
+        const img = document.getElementById('set-new-pfp').value;
+        socket.emit('updateProfile', { newUsername: n, newPassword: p, newPfp: img });
+    };
+    socket.on('updateProfileResponse', (data) => {
+        if(data.success) {
+            const currentStore = JSON.parse(localStorage.getItem('chatUser'));
+            const passToSave = document.getElementById('set-new-password').value || currentStore.password;
+            const newCreds = { username: data.username, password: passToSave };
+            localStorage.setItem('chatUser', JSON.stringify(newCreds));
+            currentUser = newCreds;
+            alert("Updated!");
+            modal.classList.add('hidden');
+        } else {
+            alert(data.message);
+        }
     });
 }
 
@@ -244,119 +217,187 @@ if (pageId === 'page-chat') {
 if (pageId === 'page-call') {
     const localVideo = document.getElementById('local-video');
     const remoteVideo = document.getElementById('remote-video');
-    const callStatus = document.querySelector('.call-status'); 
+    const callStatus = document.getElementById('call-status');
+    const userList = document.getElementById('call-users-list');
     const hangupBtn = document.getElementById('hangup-btn');
-    // We don't have a user list in the Call UI HTML provided, 
-    // but we can listen for incoming calls globally or trigger them manually.
+    const incomingModal = document.getElementById('incoming-modal');
     
     let localStream;
     let remoteStream;
     let peerConnection;
+    let pendingOffer;
+    let callerName;
     
-    // WebRTC Config
+    let iceQueue = [];
+    let earlyCandidates = [];
+
     const peerConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
         ]
     };
 
     async function startLocalStream() {
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            if(localVideo) {
-                localVideo.srcObject = localStream;
-                localVideo.muted = true; // Mute self locally to avoid feedback
-            }
-            if(callStatus) callStatus.innerText = "Ready to connect";
-            
-            // Tell server we are ready for calls
-            socket.emit('ready-for-call'); 
+            localVideo.srcObject = localStream;
+            localVideo.muted = true; 
         } catch (err) {
             console.error("Camera Error:", err);
-            alert("Camera access denied or missing.");
+            alert("Camera access denied.");
+            callStatus.innerText = "Camera Blocked";
         }
     }
-    
-    // Start camera immediately on load
     startLocalStream();
 
-    function createPeerConnection() {
-        peerConnection = new RTCPeerConnection(peerConfig);
+    function initRemoteStream() {
+        remoteStream = new MediaStream();
+        remoteVideo.srcObject = remoteStream;
+    }
 
-        // Add local tracks
+    socket.on('updateUserList', (users) => {
+        userList.innerHTML = '';
+        users.forEach(u => {
+            if (u === currentUser.username) return;
+            const li = document.createElement('li');
+            li.style.display = 'flex';
+            li.style.justifyContent = 'space-between';
+            li.style.alignItems = 'center';
+            li.style.marginBottom = '10px';
+            li.innerHTML = `
+                <span><i class="fas fa-circle" style="color:#00e676; margin-right:5px;"></i> ${u}</span>
+                <button class="call-icon-btn" onclick="startCall('${u}')" style="background:#00e676; border:none; width:30px; height:30px; border-radius:50%; cursor:pointer;"><i class="fas fa-video"></i></button>
+            `;
+            userList.appendChild(li);
+        });
+    });
+
+    window.startCall = async (userToCall) => {
+        if (!localStream) return alert("Camera not ready.");
+        
+        initRemoteStream();
+        callStatus.innerText = `Calling ${userToCall}...`;
+        hangupBtn.disabled = false;
+        
+        createPeerConnection(userToCall);
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-        // Handle ICE
+        try {
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('call-user', { userToCall, offer });
+        } catch (err) { console.error(err); }
+    };
+
+    socket.on('incoming-call', (data) => {
+        pendingOffer = data.offer;
+        callerName = data.from;
+        document.getElementById('caller-name').innerText = `Incoming call from ${callerName}`;
+        incomingModal.classList.remove('hidden');
+    });
+
+    window.acceptCall = async () => {
+        if (!localStream) return alert("Camera not ready.");
+        
+        initRemoteStream();
+        incomingModal.classList.add('hidden');
+        callStatus.innerText = "Connecting...";
+        hangupBtn.disabled = false;
+
+        createPeerConnection(callerName);
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOffer));
+            while (iceQueue.length > 0) {
+                await peerConnection.addIceCandidate(iceQueue.shift());
+            }
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('answer-call', { to: callerName, answer });
+        } catch (err) { console.error(err); }
+    };
+
+    window.rejectIncomingCall = () => {
+        incomingModal.classList.add('hidden');
+        socket.emit('reject-call', { to: callerName });
+    };
+
+    socket.on('call-answered', async (data) => {
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+            while (iceQueue.length > 0) {
+                await peerConnection.addIceCandidate(iceQueue.shift());
+            }
+        } catch (err) { console.error(err); }
+    });
+
+    socket.on('call-rejected', () => {
+        callStatus.innerText = "Call Rejected";
+        setTimeout(() => callStatus.innerText = "Ready", 2000);
+        endCallLogic();
+    });
+
+    socket.on('ice-candidate', async (data) => {
+        if (!peerConnection) {
+            earlyCandidates.push(data.candidate);
+            return;
+        }
+        try {
+            if (peerConnection.remoteDescription) {
+                await peerConnection.addIceCandidate(data.candidate);
+            } else {
+                iceQueue.push(data.candidate);
+            }
+        } catch(e) { console.error('ICE Error:', e); }
+    });
+
+    function createPeerConnection(remoteUser) {
+        iceQueue = [];
+        peerConnection = new RTCPeerConnection(peerConfig);
+        if (earlyCandidates.length > 0) {
+            earlyCandidates.forEach(c => iceQueue.push(c));
+            earlyCandidates = [];
+        }
+
         peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
-                socket.emit('ice-candidate', event.candidate);
+            if(event.candidate) {
+                socket.emit('ice-candidate', { to: remoteUser, candidate: event.candidate });
             }
         };
 
-        // Handle Stream
-        peerConnection.ontrack = (event) => {
-            if(remoteVideo) remoteVideo.srcObject = event.streams[0];
-            if(callStatus) {
-                callStatus.innerText = "Connected";
-                callStatus.style.color = "#00e676";
-            }
-        };
-        
-        // Handle Disconnect
         peerConnection.oniceconnectionstatechange = () => {
-            if (peerConnection.iceConnectionState === 'disconnected') {
+            if (peerConnection.iceConnectionState === 'connected') {
+                callStatus.innerText = "Connected";
+            } else if (peerConnection.iceConnectionState === 'disconnected') {
+                callStatus.innerText = "Disconnected";
                 endCallLogic();
             }
         };
+
+        peerConnection.ontrack = (event) => {
+            if (remoteStream) {
+                remoteStream.addTrack(event.track);
+                if (remoteVideo.paused) remoteVideo.play().catch(e => console.error(e));
+            }
+        };
     }
 
-    // --- SIGNALING ---
-    // This simple logic assumes a 1-on-1 connection approach via server relay
-
-    // 1. Server tells us to make an offer (Initiator)
-    socket.on('make-offer', async () => {
-        createPeerConnection();
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        socket.emit('offer', offer);
-        if(callStatus) callStatus.innerText = "Calling...";
-    });
-
-    // 2. We received an offer (Receiver)
-    socket.on('offer', async (offer) => {
-        if(!peerConnection) createPeerConnection();
-        await peerConnection.setRemoteDescription(offer);
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        socket.emit('answer', answer);
-        if(callStatus) callStatus.innerText = "Connecting...";
-    });
-
-    // 3. We received an answer
-    socket.on('answer', async (answer) => {
-        await peerConnection.setRemoteDescription(answer);
-    });
-
-    // 4. ICE Candidates
-    socket.on('ice-candidate', async (candidate) => {
-        try {
-            if(peerConnection) await peerConnection.addIceCandidate(candidate);
-        } catch (e) { console.error(e); }
-    });
-
-    // Hangup Logic
-    if(hangupBtn) {
-        hangupBtn.addEventListener('click', () => {
-            endCallLogic();
-            window.location.href = 'index.html'; // Go back home
-        });
-    }
-
+    window.endCall = () => { location.reload(); }
+    
     function endCallLogic() {
         if(peerConnection) peerConnection.close();
-        if(localStream) localStream.getTracks().forEach(t => t.stop());
         peerConnection = null;
-        if(callStatus) callStatus.innerText = "Ended";
+        if(remoteStream) {
+            remoteStream.getTracks().forEach(t => t.stop());
+            remoteStream = null;
+        }
+        remoteVideo.srcObject = null;
+        hangupBtn.disabled = true;
+        earlyCandidates = [];
     }
 }
