@@ -9,21 +9,32 @@
 <body id="page-home" class="dark-mode">
     <canvas id="particleCanvas"></canvas>
 
-    <div class="glass-panel centered-panel">
-        <h1>Welcome, <span id="display-name">User</span>!</h1>
-        <img id="display-pfp" class="profile-preview" src="" alt="Profile">
-        
-        <div class="home-menu">
-            <button onclick="window.location.href='chat.html'" class="big-btn">
-                <i class="fas fa-comments"></i> Enter Chat Room
-            </button>
-            
-            <div class="online-status-box">
-                <h3>Online Members</h3>
-                <ul id="online-users-list"></ul>
+    <div class="home-container">
+        <div class="glass-panel profile-card">
+            <div class="profile-header">
+                <img id="display-pfp" class="profile-avatar" src="" alt="Profile">
+                <div>
+                    <h2>Welcome back,</h2>
+                    <h1 id="display-name" class="glow-text">User</h1>
+                </div>
             </div>
+            
+            <div class="action-buttons">
+                <button onclick="window.location.href='chat.html'" class="btn-primary huge-btn">
+                    <i class="fas fa-comments"></i> Enter Chat Room
+                </button>
+                <button onclick="logout()" class="btn-danger">
+                    <i class="fas fa-sign-out-alt"></i> Log Out
+                </button>
+            </div>
+        </div>
 
-            <button onclick="logout()" class="logout-btn">Log Out</button>
+        <div class="glass-panel members-card">
+            <h3><i class="fas fa-users"></i> Online Members</h3>
+            <div class="online-list-wrapper">
+                <ul id="online-users-list" class="modern-list">
+                    </ul>
+            </div>
         </div>
     </div>
 

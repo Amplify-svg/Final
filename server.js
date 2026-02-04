@@ -13,11 +13,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 // --- DATA ---
 const users = {}; 
 let messageHistory = []; 
-const connectedSockets = {}; // Maps socket.id -> username
+const connectedSockets = {}; // socket.id -> username
 
 io.on('connection', (socket) => {
     
-    // Helper to send the list to everyone
     const broadcastOnlineUsers = () => {
         const onlineNames = [...new Set(Object.values(connectedSockets))];
         io.emit('updateUserList', onlineNames);
@@ -30,7 +29,6 @@ io.on('connection', (socket) => {
         } else {
             users[username] = { password, pfp: 'https://i.pravatar.cc/150?u=' + username };
             connectedSockets[socket.id] = username;
-            
             socket.emit('registerResponse', { success: true, username, pfp: users[username].pfp });
             io.emit('message', createSystemMessage(`${username} has joined.`));
             broadcastOnlineUsers();
@@ -58,12 +56,44 @@ io.on('connection', (socket) => {
             user: username,
             pfp: users[username].pfp,
             text: text,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            seenBy: [username] // Sender has seen it
         };
         
         messageHistory.push(msgObj);
         if (messageHistory.length > 100) messageHistory.shift();
         io.emit('message', msgObj);
+    });
+
+    // --- SEEN FEATURE ---
+    socket.on('markSeen', (msgId) => {
+        const username = connectedSockets[socket.id];
+        if (!username) return;
+
+        const msg = messageHistory.find(m => m.id === msgId);
+        if (msg) {
+            // Only add if not already in the list
+            if (!msg.seenBy.includes(username)) {
+                msg.seenBy.push(username);
+                // Broadcast update to everyone so they see the "Seen by" change
+                io.emit('messageUpdated', msg);
+            }
+        }
+    });
+
+    socket.on('markAllSeen', () => {
+        const username = connectedSockets[socket.id];
+        if (!username) return;
+        
+        let changed = false;
+        // Mark last 20 messages as seen by this user
+        messageHistory.slice(-20).forEach(msg => {
+            if (!msg.seenBy.includes(username)) {
+                msg.seenBy.push(username);
+                changed = true;
+                io.emit('messageUpdated', msg);
+            }
+        });
     });
 
     socket.on('deleteMessage', (id) => {
@@ -90,47 +120,34 @@ io.on('connection', (socket) => {
         if(username) socket.broadcast.emit('userStoppedTyping', username);
     });
 
-    // --- SETTINGS UPDATE ---
+    // --- PROFILE UPDATE ---
     socket.on('updateProfile', (data) => {
         const oldName = connectedSockets[socket.id];
         if (!oldName) return;
-        
         const { newUsername, newPassword, newPfp } = data;
 
-        // Validation: If changing name, check if taken
         if (newUsername !== oldName && users[newUsername]) {
             socket.emit('updateProfileResponse', { success: false, message: 'Username taken' });
             return;
         }
 
-        // 1. Get old data
         const oldData = users[oldName];
-        
-        // 2. Create new entry
+        if (newUsername !== oldName) delete users[oldName];
+
         users[newUsername] = {
             password: newPassword || oldData.password,
             pfp: newPfp || oldData.pfp
         };
 
-        // 3. Delete old entry if name changed
-        if (newUsername !== oldName) {
-            delete users[oldName];
-        }
-
-        // 4. Update Socket Map
         connectedSockets[socket.id] = newUsername;
 
-        // 5. Respond to user
         socket.emit('updateProfileResponse', { 
-            success: true, 
-            username: newUsername, 
-            pfp: users[newUsername].pfp 
+            success: true, username: newUsername, pfp: users[newUsername].pfp 
         });
-
-        // 6. Tell everyone else
+        
         if (newUsername !== oldName) {
-            io.emit('message', createSystemMessage(`${oldName} changed their name to ${newUsername}.`));
-            broadcastOnlineUsers(); // This fixes the list breaking
+            io.emit('message', createSystemMessage(`${oldName} is now ${newUsername}.`));
+            broadcastOnlineUsers();
         }
     });
 
@@ -144,7 +161,7 @@ io.on('connection', (socket) => {
 });
 
 function createSystemMessage(text) {
-    return { id: uuidv4(), user: 'System', text: text, timestamp: new Date().toISOString() };
+    return { id: uuidv4(), user: 'System', text: text, timestamp: new Date().toISOString(), seenBy: [] };
 }
 
 const PORT = process.env.PORT || 3000;
