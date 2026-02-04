@@ -8,9 +8,9 @@ body {
 
 /* --- GLASS PANELS --- */
 .glass-panel {
-    background: rgba(20, 20, 20, 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgba(20, 20, 20, 0.7);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
@@ -20,29 +20,7 @@ body {
     transform: translate(-50%, -50%);
     width: 90%; max-width: 400px;
     padding: 2rem; text-align: center;
-}
-
-/* --- HOME PAGE STYLES --- */
-.profile-preview {
-    width: 100px; height: 100px;
-    border-radius: 50%; object-fit: cover;
-    border: 3px solid rgba(255,255,255,0.2);
-    margin: 10px 0;
-}
-.big-btn {
-    display: block; width: 100%;
-    padding: 15px; font-size: 1.2rem;
-    background: #00e676; color: #111;
-    border: none; border-radius: 10px;
-    cursor: pointer; margin-bottom: 15px;
-    font-weight: bold; transition: transform 0.2s;
-}
-.big-btn:hover { transform: scale(1.05); }
-.online-status-box {
-    background: rgba(0,0,0,0.3);
-    border-radius: 8px; padding: 10px;
-    max-height: 150px; overflow-y: auto;
-    margin-bottom: 15px; text-align: left;
+    z-index: 1000; /* Ensure modal is on top */
 }
 
 /* --- CHAT LAYOUT --- */
@@ -51,65 +29,89 @@ body {
     padding: 20px; box-sizing: border-box; gap: 20px;
 }
 .chat-sidebar {
-    width: 250px; display: flex; flex-direction: column;
+    width: 260px; display: flex; flex-direction: column;
     padding: 20px;
+    flex-shrink: 0; /* Prevents sidebar from squishing */
 }
 .chat-main {
     flex: 1; display: flex; flex-direction: column;
     position: relative;
+    min-width: 0; /* Fixes flexbox overflow issue */
 }
-.back-btn {
-    background: transparent; border: 1px solid #555;
-    color: #ccc; padding: 5px 10px; cursor: pointer;
-    border-radius: 5px; margin-bottom: 20px;
-}
-.back-btn:hover { background: rgba(255,255,255,0.1); }
 
-/* --- LISTS & INPUTS --- */
-#online-users-list { list-style: none; padding: 0; }
+/* --- SIDEBAR COMPONENTS --- */
+.nav-btn {
+    display: flex; align-items: center; justify-content: flex-start;
+    width: 100%; padding: 12px; margin-bottom: 8px;
+    background: rgba(255,255,255,0.05); border: none; color: #ddd;
+    border-radius: 8px; cursor: pointer; font-size: 1rem;
+    transition: background 0.2s;
+}
+.nav-btn i { margin-right: 12px; width: 20px; text-align: center; }
+.nav-btn:hover { background: rgba(255,255,255,0.15); color: white; }
+
+.settings-btn { margin-top: auto; } /* Pushes to bottom */
+.logout-btn { background: rgba(255, 71, 87, 0.2); color: #ff6b81; }
+.logout-btn:hover { background: rgba(255, 71, 87, 0.4); color: white; }
+
+.divider { height: 1px; background: rgba(255,255,255,0.1); margin: 15px 0; }
+.spacer { flex: 1; }
+
+#online-users-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; }
 #online-users-list li {
     padding: 8px; margin-bottom: 4px;
-    background: rgba(255,255,255,0.05); border-radius: 4px;
-    font-size: 0.9rem;
+    border-radius: 4px; font-size: 0.9rem;
+    display: flex; align-items: center;
 }
-input {
-    display: block; width: 100%; padding: 12px; margin: 10px 0;
-    background: rgba(0,0,0,0.3); border: 1px solid #444;
-    border-radius: 8px; color: white; box-sizing: border-box;
-}
+#online-users-list li i { color: #00e676; font-size: 0.6rem; margin-right: 8px; }
 
-/* --- CHAT MESSAGES --- */
+/* --- MESSAGES --- */
 #messages {
-    flex: 1; overflow-y: auto; margin-bottom: 10px;
-    scrollbar-width: thin;
+    flex: 1; overflow-y: auto; margin-bottom: 15px;
+    scrollbar-width: thin; scrollbar-color: #555 transparent;
+    padding-right: 10px;
 }
 .message { display: flex; align-items: flex-start; margin-bottom: 15px; }
 .msg-pfp {
     width: 40px; height: 40px; border-radius: 50%;
-    margin-right: 12px; object-fit: cover;
+    margin-right: 12px; object-fit: cover; border: 2px solid rgba(255,255,255,0.1);
 }
 .msg-content {
     background: rgba(255,255,255,0.08); padding: 10px 15px;
     border-radius: 0 12px 12px 12px; max-width: 80%;
+    word-break: break-word;
 }
-.system-msg { color: #888; justify-content: center; font-style: italic; }
-.delete-btn { cursor: pointer; margin-left: 10px; opacity: 0.5; }
+.system-msg { color: #888; justify-content: center; font-style: italic; font-size: 0.9rem; }
+.delete-btn { cursor: pointer; margin-left: 10px; opacity: 0.5; color: #aaa; }
 .delete-btn:hover { opacity: 1; color: #ff4757; }
 
-/* --- BOTTOM BAR --- */
+/* --- INPUT BAR --- */
 #chat-form {
     display: flex; background: rgba(255,255,255,0.1);
     backdrop-filter: blur(10px); border-radius: 50px;
     padding: 5px; border: 1px solid rgba(255,255,255,0.1);
 }
-#msg-input { border: none; margin: 0; padding: 15px 20px; background: transparent; flex: 1; outline: none; }
+#msg-input { border: none; margin: 0; padding: 15px 20px; background: transparent; flex: 1; outline: none; color: white; }
 #send-btn {
     width: 50px; height: 50px; border-radius: 50%;
     background: #4285f4; color: white; border: none;
-    font-size: 1.2rem; cursor: pointer;
+    font-size: 1.2rem; cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
 }
-.buttons button { padding: 10px 20px; background: #4285f4; color: white; border: none; border-radius: 5px; margin: 5px; cursor: pointer; }
-.logout-btn { background: #ff4757 !important; width: 100%; margin-top: 10px; }
+#send-btn:hover { background: #3367d6; }
 
-/* Settings Modal */
-#settings-btn { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: #444; color: white; border: none; font-size: 1.5rem; cursor: pointer; z-index: 200; }
+/* --- GENERAL INPUTS --- */
+input {
+    display: block; width: 100%; padding: 12px; margin: 10px 0;
+    background: rgba(0,0,0,0.4); border: 1px solid #444;
+    border-radius: 8px; color: white; box-sizing: border-box;
+}
+.buttons { margin-top: 15px; display: flex; gap: 10px; justify-content: center; }
+.buttons button {
+    padding: 10px 20px; background: #4285f4; color: white;
+    border: none; border-radius: 6px; cursor: pointer; flex: 1;
+}
+label { font-size: 0.8rem; color: #aaa; margin-top: 10px; display: block; }
+
+/* Typing */
+.typing-indicator { height: 20px; font-size: 0.8rem; color: #00e676; padding-left: 60px; font-weight: bold; }

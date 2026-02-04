@@ -11,13 +11,23 @@
 
     <div id="chat-container">
         <div class="chat-sidebar glass-panel">
-            <button onclick="window.location.href='index.html'" class="back-btn">
-                <i class="fas fa-arrow-left"></i> Home
+            <button onclick="window.location.href='index.html'" class="nav-btn">
+                <i class="fas fa-home"></i> Home
             </button>
-            <h3>Online</h3>
+
+            <div class="divider"></div>
+
+            <h3>Online Members</h3>
             <ul id="online-users-list"></ul>
-            <div style="flex:1"></div>
-            <button onclick="logout()" class="logout-btn">Log Out</button>
+
+            <div class="spacer"></div>
+
+            <button onclick="toggleSettings()" class="nav-btn settings-btn">
+                <i class="fas fa-cog"></i> Settings
+            </button>
+            <button onclick="logout()" class="nav-btn logout-btn">
+                <i class="fas fa-sign-out-alt"></i> Log Out
+            </button>
         </div>
 
         <div class="chat-main">
@@ -30,15 +40,20 @@
         </div>
     </div>
 
-    <button id="settings-btn" onclick="toggleSettings()"><i class="fas fa-cog"></i></button>
-
     <div id="settings-modal" class="hidden glass-panel centered-panel">
         <h2>Profile Settings</h2>
-        <input type="text" id="set-new-username" placeholder="New Username">
-        <input type="password" id="set-new-password" placeholder="New Password">
-        <input type="text" id="set-new-pfp" placeholder="New PFP URL">
+        <div style="text-align: left;">
+            <label>New Username</label>
+            <input type="text" id="set-new-username" placeholder="Enter new username">
+            
+            <label>New Password (Optional)</label>
+            <input type="password" id="set-new-password" placeholder="Enter new password">
+            
+            <label>Profile Picture URL</label>
+            <input type="text" id="set-new-pfp" placeholder="https://...">
+        </div>
         <div class="buttons">
-            <button onclick="saveSettings()">Save</button>
+            <button onclick="saveSettings()">Save Changes</button>
             <button onclick="toggleSettings()" style="background:#555">Cancel</button>
         </div>
     </div>

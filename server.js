@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -14,13 +13,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // --- DATA ---
 const users = {}; 
 let messageHistory = []; 
-const connectedSockets = {}; 
+const connectedSockets = {}; // Maps socket.id -> username
 
 io.on('connection', (socket) => {
     
-    // Send history immediately (only useful if they are on chat page)
-    socket.emit('loadHistory', messageHistory);
-
+    // Helper to send the list to everyone
     const broadcastOnlineUsers = () => {
         const onlineNames = [...new Set(Object.values(connectedSockets))];
         io.emit('updateUserList', onlineNames);
@@ -33,6 +30,7 @@ io.on('connection', (socket) => {
         } else {
             users[username] = { password, pfp: 'https://i.pravatar.cc/150?u=' + username };
             connectedSockets[socket.id] = username;
+            
             socket.emit('registerResponse', { success: true, username, pfp: users[username].pfp });
             io.emit('message', createSystemMessage(`${username} has joined.`));
             broadcastOnlineUsers();
@@ -78,6 +76,10 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('loadHistory', () => {
+        socket.emit('loadHistory', messageHistory);
+    });
+
     socket.on('typing', () => {
         const username = connectedSockets[socket.id];
         if(username) socket.broadcast.emit('userTyping', username);
@@ -88,30 +90,48 @@ io.on('connection', (socket) => {
         if(username) socket.broadcast.emit('userStoppedTyping', username);
     });
 
+    // --- SETTINGS UPDATE ---
     socket.on('updateProfile', (data) => {
         const oldName = connectedSockets[socket.id];
         if (!oldName) return;
+        
         const { newUsername, newPassword, newPfp } = data;
 
+        // Validation: If changing name, check if taken
         if (newUsername !== oldName && users[newUsername]) {
             socket.emit('updateProfileResponse', { success: false, message: 'Username taken' });
             return;
         }
 
+        // 1. Get old data
         const oldData = users[oldName];
-        if (newUsername !== oldName) delete users[oldName];
-
+        
+        // 2. Create new entry
         users[newUsername] = {
             password: newPassword || oldData.password,
             pfp: newPfp || oldData.pfp
         };
 
+        // 3. Delete old entry if name changed
+        if (newUsername !== oldName) {
+            delete users[oldName];
+        }
+
+        // 4. Update Socket Map
         connectedSockets[socket.id] = newUsername;
 
+        // 5. Respond to user
         socket.emit('updateProfileResponse', { 
-            success: true, username: newUsername, pfp: users[newUsername].pfp 
+            success: true, 
+            username: newUsername, 
+            pfp: users[newUsername].pfp 
         });
-        broadcastOnlineUsers();
+
+        // 6. Tell everyone else
+        if (newUsername !== oldName) {
+            io.emit('message', createSystemMessage(`${oldName} changed their name to ${newUsername}.`));
+            broadcastOnlineUsers(); // This fixes the list breaking
+        }
     });
 
     socket.on('disconnect', () => {

@@ -1,26 +1,23 @@
 const socket = io();
-const pageId = document.body.id; // 'page-login', 'page-home', or 'page-chat'
+const pageId = document.body.id; 
 
 // --- GLOBAL AUTH CHECK ---
-// 1. Get user from storage
 const savedUser = localStorage.getItem('chatUser');
 let currentUser = savedUser ? JSON.parse(savedUser) : null;
 
-// 2. Logic: Where should the user be?
+// Logic: Redirect based on auth status
 if (!currentUser && pageId !== 'page-login') {
-    // If not logged in, but on Home or Chat -> Go to Login
     window.location.href = 'login.html';
 } else if (currentUser && pageId === 'page-login') {
-    // If logged in, but on Login page -> Go to Home
     window.location.href = 'index.html';
 }
 
-// 3. Connect Socket if user exists
+// Connect if user exists
 if (currentUser) {
     socket.emit('login', currentUser);
 }
 
-// --- LOGOUT FUNCTION ---
+// --- LOGOUT ---
 window.logout = function() {
     localStorage.removeItem('chatUser');
     window.location.href = 'login.html';
@@ -30,7 +27,7 @@ window.logout = function() {
 // PAGE SPECIFIC LOGIC
 // ==========================================
 
-// --- LOGIN PAGE LOGIC ---
+// --- LOGIN PAGE ---
 if (pageId === 'page-login') {
     const authError = document.getElementById('auth-error');
 
@@ -46,25 +43,21 @@ if (pageId === 'page-login') {
         if(u && p) socket.emit('login', { username: u, password: p });
     }
 
-    socket.on('registerResponse', (data) => handleAuth(data));
-    socket.on('loginResponse', (data) => handleAuth(data));
-
-    function handleAuth(data) {
+    const handleAuth = (data) => {
         if (data.success) {
-            // Save to local storage
             const pass = document.getElementById('password').value;
-            localStorage.setItem('chatUser', JSON.stringify({ 
-                username: data.username, 
-                password: pass 
-            }));
-            window.location.href = 'index.html'; // Redirect to Home
+            localStorage.setItem('chatUser', JSON.stringify({ username: data.username, password: pass }));
+            window.location.href = 'index.html';
         } else {
             authError.innerText = data.message;
         }
-    }
+    };
+
+    socket.on('registerResponse', handleAuth);
+    socket.on('loginResponse', handleAuth);
 }
 
-// --- HOME PAGE LOGIC ---
+// --- HOME PAGE ---
 if (pageId === 'page-home') {
     socket.on('loginResponse', (data) => {
         if(data.success) {
@@ -75,16 +68,18 @@ if (pageId === 'page-home') {
 
     socket.on('updateUserList', (users) => {
         const list = document.getElementById('online-users-list');
-        list.innerHTML = '';
-        users.forEach(u => {
-            const li = document.createElement('li');
-            li.innerHTML = `<i class="fas fa-circle" style="color:#00e676; font-size:0.6rem; margin-right:5px"></i> ${u}`;
-            list.appendChild(li);
-        });
+        if(list) {
+            list.innerHTML = '';
+            users.forEach(u => {
+                const li = document.createElement('li');
+                li.innerHTML = `<i class="fas fa-circle"></i> ${u}`;
+                list.appendChild(li);
+            });
+        }
     });
 }
 
-// --- CHAT PAGE LOGIC ---
+// --- CHAT PAGE ---
 if (pageId === 'page-chat') {
     const messagesDiv = document.getElementById('messages');
     const msgInput = document.getElementById('msg-input');
@@ -92,23 +87,29 @@ if (pageId === 'page-chat') {
     const typingDiv = document.getElementById('typing-indicator');
     let typingTimeout;
 
-    // Listeners
+    // Load history immediately
+    socket.emit('loadHistory');
+
+    // 1. Listen for Online Users (Fixes the breakage)
     socket.on('updateUserList', (users) => {
         onlineList.innerHTML = '';
         users.forEach(u => {
             const li = document.createElement('li');
-            li.innerHTML = `<i class="fas fa-circle" style="color:#00e676; font-size:0.6rem; margin-right:5px"></i> ${u}`;
+            // Highlight myself
+            const isMe = u === currentUser.username ? " (You)" : "";
+            li.innerHTML = `<i class="fas fa-circle"></i> ${u}${isMe}`;
             onlineList.appendChild(li);
         });
     });
 
+    // 2. Messaging
     socket.on('message', (data) => appendMessage(data));
     socket.on('loadHistory', (history) => {
         messagesDiv.innerHTML = '';
         history.forEach(msg => appendMessage(msg));
     });
-    
-    // Typing
+
+    // 3. Typing
     msgInput.addEventListener('input', () => {
         socket.emit('typing');
         clearTimeout(typingTimeout);
@@ -117,7 +118,6 @@ if (pageId === 'page-chat') {
     socket.on('userTyping', (u) => typingDiv.innerText = `${u} is typing...`);
     socket.on('userStoppedTyping', () => typingDiv.innerText = '');
 
-    // Sending
     document.getElementById('chat-form').addEventListener('submit', (e) => {
         e.preventDefault();
         if(msgInput.value) {
@@ -127,7 +127,7 @@ if (pageId === 'page-chat') {
         }
     });
 
-    // Delete
+    // 4. Delete
     window.deleteMsg = function(id) {
         if(confirm("Delete?")) socket.emit('deleteMessage', id);
     }
@@ -136,34 +136,66 @@ if (pageId === 'page-chat') {
         if(el) el.remove();
     });
 
-    // Settings
+    // 5. Settings Logic (THE FIX)
     const modal = document.getElementById('settings-modal');
-    window.toggleSettings = () => modal.classList.toggle('hidden');
+    window.toggleSettings = () => {
+        modal.classList.toggle('hidden');
+        if(!modal.classList.contains('hidden')) {
+            // Fill inputs with current data
+            document.getElementById('set-new-username').value = currentUser.username;
+        }
+    };
+
     window.saveSettings = () => {
+        const newName = document.getElementById('set-new-username').value;
+        const newPass = document.getElementById('set-new-password').value;
+        const newPfp = document.getElementById('set-new-pfp').value;
+
         socket.emit('updateProfile', {
-            newUsername: document.getElementById('set-new-username').value,
-            newPassword: document.getElementById('set-new-password').value,
-            newPfp: document.getElementById('set-new-pfp').value
+            newUsername: newName,
+            newPassword: newPass,
+            newPfp: newPfp
         });
     };
+
     socket.on('updateProfileResponse', (data) => {
         if(data.success) {
-            alert("Updated! Log in again.");
-            logout();
+            // Update LocalStorage WITHOUT logging out
+            const currentStore = JSON.parse(localStorage.getItem('chatUser'));
+            
+            // If user typed a new password, save it, otherwise keep old one
+            const passToSave = document.getElementById('set-new-password').value || currentStore.password;
+            
+            const newCreds = {
+                username: data.username,
+                password: passToSave
+            };
+
+            localStorage.setItem('chatUser', JSON.stringify(newCreds));
+            currentUser = newCreds; // Update global variable
+
+            alert("Profile Updated Successfully!");
+            modal.classList.add('hidden');
+            
+            // Note: The 'updateUserList' socket event will fire automatically
+            // because the server broadcasts it. We don't need to reload.
         } else {
-            alert(data.message);
+            alert("Error: " + data.message);
         }
     });
 
     function appendMessage(data) {
         const div = document.createElement('div');
         div.id = `msg-${data.id}`;
-        div.classList.add('message');
+        
         if (data.user === 'System') {
-            div.classList.add('system-msg');
+            div.classList.add('message', 'system-msg');
             div.innerText = data.text;
         } else {
+            div.classList.add('message');
             const pfp = data.pfp || 'https://i.pravatar.cc/150';
+            
+            // Show trash can ONLY if it belongs to current user
             const canDelete = data.user === currentUser.username ? 
                 `<span class="delete-btn" onclick="deleteMsg('${data.id}')"><i class="fas fa-trash"></i></span>` : '';
             
