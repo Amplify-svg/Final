@@ -61,6 +61,7 @@ window.logout = function() {
 let userSettings = {
     soundEnabled: localStorage.getItem('soundEnabled') === 'true',
     panicLink: localStorage.getItem('panicLink') || 'https://google.com',
+    panicShortcut: localStorage.getItem('panicShortcut') || 'Ctrl+Shift+P,Escape',
     cloakTitle: localStorage.getItem('cloakTitle') || '',
     cloakIcon: localStorage.getItem('cloakIcon') || ''
 };
@@ -79,6 +80,19 @@ function applyCloaking() {
         }
     }
 }
+
+// global keyboard shortcut for panic button
+// checks configured shortcut
+
+document.addEventListener('keydown', (e) => {
+    // ignore when typing
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+
+    if (eventMatchesShortcut(e, userSettings.panicShortcut)) {
+        panicButtonAction();
+    }
+});
 
 // Play notification sound
 function playNotificationSound() {
@@ -113,6 +127,69 @@ window.panicButtonAction = function() {
     }
 };
 
+// add beforeunload confirmation every time
+window.addEventListener('beforeunload', function (e) {
+    // standard message is ignored by modern browsers, but returning non-null triggers prompt
+    e.preventDefault();
+    e.returnValue = 'Would you like to leave the site?';
+});
+
+// helper to setup game upload button (if present on page)
+function setupGameUpload() {
+    const btn = document.getElementById('upload-game-btn');
+    if (!btn) return;
+    btn.onclick = () => {
+        const fname = document.getElementById('upload-game-filename').value.trim();
+        const content = document.getElementById('upload-game-content').value;
+        if (!fname || !content) {
+            alert('Provide filename and HTML content');
+            return;
+        }
+        socket.emit('adminUploadGame', { filename: fname, content });
+    };
+}
+// call once now in case elements exist
+setupGameUpload();
+
+// global listener for new games
+socket.on('newGameUploaded', ({filename}) => {
+    showNotification(`New game uploaded: ${filename}`, 'info');
+});
+
+// helper to compare keyboard events against a shortcut string
+function eventMatchesShortcut(e, shortcutStr) {
+
+// helper to compare keyboard events against a shortcut string
+function eventMatchesShortcut(e, shortcutStr) {
+    if (!shortcutStr) return false;
+    const combos = shortcutStr.split(',').map(s => s.trim().toLowerCase());
+    for (const combo of combos) {
+        if (!combo) continue;
+        const parts = combo.split('+').map(p => p.trim());
+        let required = {ctrl:false,shift:false,alt:false,meta:false, key:null};
+        for (const part of parts) {
+            const p = part.toLowerCase();
+            if (p === 'ctrl' || p === 'control') required.ctrl = true;
+            else if (p === 'shift') required.shift = true;
+            else if (p === 'alt') required.alt = true;
+            else if (p === 'meta' || p === 'cmd' || p === 'command') required.meta = true;
+            else if (p) required.key = p;
+        }
+        if (required.ctrl !== e.ctrlKey) continue;
+        if (required.shift !== e.shiftKey) continue;
+        if (required.alt !== e.altKey) continue;
+        if (required.meta !== e.metaKey) continue;
+        if (required.key) {
+            if (e.key.toLowerCase() === required.key) return true;
+            continue;
+        }
+        // if no specific key, treat as match (mostly modifiers only)
+        return true;
+    }
+    return false;
+}
+
+
 window.toggleSettings = function() {
     const modal = document.getElementById('settings-modal');
     if(!modal) return;
@@ -126,6 +203,8 @@ window.toggleSettings = function() {
         document.getElementById('current-username-display').innerText = currentUser.username;
         document.getElementById('sound-toggle').checked = userSettings.soundEnabled;
         document.getElementById('panic-link').value = userSettings.panicLink;
+        const shortcutInput = document.getElementById('panic-shortcut');
+        if (shortcutInput) shortcutInput.value = userSettings.panicShortcut;
         document.getElementById('cloak-title').value = userSettings.cloakTitle;
         document.getElementById('cloak-icon').value = userSettings.cloakIcon;
         
@@ -147,11 +226,14 @@ window.saveSettings = function() {
     // Save new settings
     userSettings.soundEnabled = document.getElementById('sound-toggle').checked;
     userSettings.panicLink = document.getElementById('panic-link').value || 'https://google.com';
+    const shortcutInput = document.getElementById('panic-shortcut');
+    userSettings.panicShortcut = shortcutInput ? (shortcutInput.value || 'Ctrl+Shift+P,Escape') : 'Ctrl+Shift+P,Escape';
     userSettings.cloakTitle = document.getElementById('cloak-title').value;
     userSettings.cloakIcon = document.getElementById('cloak-icon').value;
     
     localStorage.setItem('soundEnabled', userSettings.soundEnabled);
     localStorage.setItem('panicLink', userSettings.panicLink);
+    localStorage.setItem('panicShortcut', userSettings.panicShortcut);
     localStorage.setItem('cloakTitle', userSettings.cloakTitle);
     localStorage.setItem('cloakIcon', userSettings.cloakIcon);
     

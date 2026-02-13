@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Games - Nexus Revived">
+    <meta name="theme-color" content="#050505">
+    <title>Games - Nexus Revived</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body id="page-games">
+    <canvas id="particleCanvas"></canvas>
+    <div class="app-container">
+        <header class="dashboard-header fade-in">
+            <div class="brand">
+                <i class="fas fa-gamepad" style="color: var(--primary);"></i> Games
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="window.location.href='index.html'" class="btn-danger" style="min-width: 120px; font-size: 0.95rem;">
+                    <i class="fas fa-home"></i> Home
+                </button>
+            </div>
+        </header>
+        <div id="notifications-container" style="position: fixed; top: 80px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; max-width: 400px;"></div>
+        <main class="glass-panel" style="padding: 20px; min-height: 60vh;">
+            <h2 style="color: var(--primary);">Available Games</h2>
+            <ul id="games-list" style="list-style: none; padding: 0; margin: 0;"></ul>
+        </main>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        socket.on('connect', () => console.log('Socket connected', socket.id));
+        function fetchGames() {
+            fetch('/api/games').then(r => r.json()).then(data => {
+                const list = document.getElementById('games-list');
+                list.innerHTML = '';
+                data.games.forEach(name => {
+                    const li = document.createElement('li');
+                    const link = document.createElement('a');
+                    link.href = '/games/' + encodeURIComponent(name);
+                    link.target = '_blank';
+                    link.textContent = name;
+                    li.appendChild(link);
+                    list.appendChild(li);
+                });
+            });
+        }
+        socket.on('newGameUploaded', () => fetchGames());
+        fetchGames();
+    </script>
+</body>
+</html>

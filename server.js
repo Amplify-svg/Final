@@ -3,12 +3,24 @@ const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+
+// ensure games directory exists for persistent HTML uploads
+const gamesDir = path.join(__dirname, 'public', 'games');
+if (!fs.existsSync(gamesDir)) {
+    fs.mkdirSync(gamesDir, { recursive: true });
+}
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
+// serve uploaded games
+app.use('/games', express.static(path.join(__dirname, 'public', 'games')));
+
+// parse json bodies for admin endpoints
+app.use(express.json());
 
 // --- DATA STORAGE ---
 const users = {}; 
@@ -57,6 +69,46 @@ io.on('connection', (socket) => {
     const broadcastOnlineUsers = () => io.emit('updateUserList', getOnlineNames());
 
     // --- AUTHENTICATION ---
+
+    // Admin route for uploading a game HTML file
+    socket.on('adminUploadGame', ({ filename, content }) => {
+        const adminUsername = connectedSockets[socket.id];
+        const admin = users[adminUsername];
+        if (!adminUsername || !admin || !admin.isAdmin) {
+            socket.emit('adminActionResponse', { success: false, message: 'Not authorized' });
+            return;
+        }
+        if (!filename || !content) {
+            socket.emit('adminActionResponse', { success: false, message: 'Filename and content required' });
+            return;
+        }
+        // sanitize filename to avoid traversal
+        filename = path.basename(filename);
+        if (!filename.toLowerCase().endsWith('.html')) {
+            filename += '.html';
+        }
+        const filePath = path.join(gamesDir, filename);
+        fs.writeFile(filePath, content, (err) => {
+            if (err) {
+                console.error('game write error', err);
+                socket.emit('adminActionResponse', { success: false, message: 'Failed to save game' });
+            } else {
+                socket.emit('adminActionResponse', { success: true, message: `Game ${filename} uploaded` });
+                io.emit('newGameUploaded', { filename });
+            }
+        });
+    });
+
+    // HTTP API for listing games
+    app.get('/api/games', (req, res) => {
+        fs.readdir(gamesDir, (err, files) => {
+            if (err) return res.status(500).json({ error: 'Unable to read games' });
+            const htmlFiles = files.filter(f => f.toLowerCase().endsWith('.html'));
+            res.json({ games: htmlFiles });
+        });
+    });
+
+    // *** other socket handlers follow below ***
     socket.on('register', ({ username, password }) => {
         if (bannedUsers.has(username)) {
             socket.emit('registerResponse', { success: false, message: 'This username is banned.' });

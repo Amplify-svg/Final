@@ -323,6 +323,7 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
 }
 .card-chat { background: linear-gradient(135deg, rgba(0, 230, 118, 0.08), rgba(0,0,0,0.4)); }
 .card-video { background: linear-gradient(135deg, rgba(41, 121, 255, 0.08), rgba(0,0,0,0.4)); }
+.card-game { background: linear-gradient(135deg, rgba(255, 193, 7, 0.08), rgba(0,0,0,0.4)); }
 .action-card:hover { 
     transform: translateY(-8px); 
     border-color: rgba(255,255,255,0.15); 
@@ -332,6 +333,7 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
 .card-icon { font-size: 2.5rem; margin-bottom: 10px; }
 .card-chat .card-icon { color: var(--primary); }
 .card-video .card-icon { color: var(--secondary); }
+.card-game .card-icon { color: #ffc107; }
 .card-title { font-size: 1.3rem; font-weight: 700; color: white; }
 .card-desc { font-size: 0.85rem; color: #aaa; margin-top: 5px; }
 
