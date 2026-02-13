@@ -22,12 +22,14 @@ const userIPs = {}; // { username: ip_address }
 
 // Default admin user - you can change this
 const ADMIN_USERNAMES = ['admin', 'administrator'];
+const OWNER_USERNAME = 'Retrick_aj'; // the hardcoded owner account
 
-// Initialize default admin
-users['Retrick_aj'] = { 
+// Initialize default admin/owner
+users[OWNER_USERNAME] = {
     password: '0002042736',
     pfp: 'https://i.pravatar.cc/150?u=admin',
-    isAdmin: true
+    isAdmin: true,
+    isOwner: true
 };
 
 io.on('connection', (socket) => {
@@ -64,17 +66,19 @@ io.on('connection', (socket) => {
             socket.emit('registerResponse', { success: false, message: 'Username taken.' });
         } else {
             const isAdmin = ADMIN_USERNAMES.includes(username.toLowerCase());
+            const isOwner = username === OWNER_USERNAME; // only matches our hardcoded owner
             users[username] = { 
                 password, 
                 pfp: 'https://i.pravatar.cc/150?u=' + username,
-                isAdmin: isAdmin,
+                isAdmin: isAdmin || isOwner,
+                isOwner: isOwner || false,
                 isMuted: false,
                 mutedUntil: 0
             };
             userIPs[username] = clientIP;
             connectedSockets[socket.id] = username;
             
-            socket.emit('registerResponse', { success: true, username, pfp: users[username].pfp, isAdmin: isAdmin });
+            socket.emit('registerResponse', { success: true, username, pfp: users[username].pfp, isAdmin: users[username].isAdmin, isOwner: users[username].isOwner });
             
             broadcastOnlineUsers();
         }
@@ -90,8 +94,9 @@ io.on('connection', (socket) => {
             userIPs[username] = clientIP;
             connectedSockets[socket.id] = username;
             const isAdmin = user.isAdmin || false;
+            const isOwner = user.isOwner || false;
             
-            socket.emit('loginResponse', { success: true, username, pfp: user.pfp, isAdmin: isAdmin });
+            socket.emit('loginResponse', { success: true, username, pfp: user.pfp, isAdmin: isAdmin, isOwner: isOwner });
             socket.emit('updateUserList', getOnlineNames()); 
             broadcastOnlineUsers(); 
         } else {
@@ -222,7 +227,8 @@ io.on('connection', (socket) => {
         users[newUsername] = {
             password: newPassword || oldData.password,
             pfp: newPfp || oldData.pfp,
-            isAdmin: oldData.isAdmin || false
+            isAdmin: oldData.isAdmin || false,
+            isOwner: oldData.isOwner || false
         };
 
         connectedSockets[socket.id] = newUsername;
@@ -298,6 +304,7 @@ io.on('connection', (socket) => {
                 username: name,
                 pfp: data.pfp,
                 isAdmin: data.isAdmin || false,
+                isOwner: data.isOwner || false,
                 password: data.password,
                 messageCount: userMessages
             };
@@ -318,18 +325,25 @@ io.on('connection', (socket) => {
 
     socket.on('adminDeleteUser', ({ targetUsername }) => {
         const adminUsername = connectedSockets[socket.id];
-        if (!adminUsername || !users[adminUsername] || !users[adminUsername].isAdmin) {
+        const admin = users[adminUsername];
+        if (!adminUsername || !admin || !admin.isAdmin) {
             socket.emit('adminActionResponse', { success: false, message: 'Not authorized' });
             return;
         }
 
-        if (users[targetUsername]) {
-            delete users[targetUsername];
-            io.emit('adminNotification', `Admin ${adminUsername} deleted user ${targetUsername}`);
-            socket.emit('adminActionResponse', { success: true, message: `Deleted ${targetUsername}` });
-        } else {
+        if (!users[targetUsername]) {
             socket.emit('adminActionResponse', { success: false, message: 'User not found' });
+            return;
         }
+
+        if (users[targetUsername].isAdmin && !admin.isOwner) {
+            socket.emit('adminActionResponse', { success: false, message: 'Cannot delete another admin' });
+            return;
+        }
+
+        delete users[targetUsername];
+        io.emit('adminNotification', `Admin ${adminUsername} deleted user ${targetUsername}`);
+        socket.emit('adminActionResponse', { success: true, message: `Deleted ${targetUsername}` });
     });
 
     socket.on('adminUpdateUserPfp', ({ targetUsername, newPfp }) => {
@@ -364,15 +378,22 @@ io.on('connection', (socket) => {
 
     socket.on('adminMakeAdmin', ({ targetUsername, makeAdmin }) => {
         const adminUsername = connectedSockets[socket.id];
-        if (!adminUsername || !users[adminUsername] || !users[adminUsername].isAdmin) {
+        const admin = users[adminUsername];
+        if (!adminUsername || !admin || !admin.isAdmin) {
             socket.emit('adminActionResponse', { success: false, message: 'Not authorized' });
+            return;
+        }
+
+        // only owner can promote/demote admins
+        if (!admin.isOwner) {
+            socket.emit('adminActionResponse', { success: false, message: 'Only the owner can change admin status' });
             return;
         }
 
         if (users[targetUsername]) {
             users[targetUsername].isAdmin = makeAdmin;
             const action = makeAdmin ? 'promoted to admin' : 'demoted from admin';
-            io.emit('adminNotification', `Admin ${adminUsername} ${action} ${targetUsername}`);
+            io.emit('adminNotification', `Owner ${adminUsername} ${action} ${targetUsername}`);
             socket.emit('adminActionResponse', { success: true, message: `${targetUsername} ${action}` });
             socket.emit('getAdminData'); // Refresh admin data
         } else {
@@ -437,13 +458,19 @@ io.on('connection', (socket) => {
     // Mute user for specified duration (ms)
     socket.on('adminMuteUser', ({ targetUsername, duration }) => {
         const adminUsername = connectedSockets[socket.id];
-        if (!adminUsername || !users[adminUsername] || !users[adminUsername].isAdmin) {
+        const admin = users[adminUsername];
+        if (!adminUsername || !admin || !admin.isAdmin) {
             socket.emit('adminActionResponse', { success: false, message: 'Not authorized' });
             return;
         }
 
         if (!users[targetUsername]) {
             socket.emit('adminActionResponse', { success: false, message: 'User not found' });
+            return;
+        }
+
+        if (users[targetUsername].isAdmin && !admin.isOwner) {
+            socket.emit('adminActionResponse', { success: false, message: 'Cannot mute another admin' });
             return;
         }
 
@@ -458,13 +485,19 @@ io.on('connection', (socket) => {
     // Unmute user
     socket.on('adminUnmuteUser', ({ targetUsername }) => {
         const adminUsername = connectedSockets[socket.id];
-        if (!adminUsername || !users[adminUsername] || !users[adminUsername].isAdmin) {
+        const admin = users[adminUsername];
+        if (!adminUsername || !admin || !admin.isAdmin) {
             socket.emit('adminActionResponse', { success: false, message: 'Not authorized' });
             return;
         }
 
         if (!users[targetUsername]) {
             socket.emit('adminActionResponse', { success: false, message: 'User not found' });
+            return;
+        }
+
+        if (users[targetUsername].isAdmin && !admin.isOwner) {
+            socket.emit('adminActionResponse', { success: false, message: 'Cannot unmute another admin' });
             return;
         }
 
@@ -479,13 +512,20 @@ io.on('connection', (socket) => {
     // Ban user (prevents login/registration)
     socket.on('adminBanUser', ({ targetUsername }) => {
         const adminUsername = connectedSockets[socket.id];
-        if (!adminUsername || !users[adminUsername] || !users[adminUsername].isAdmin) {
+        const admin = users[adminUsername];
+        if (!adminUsername || !admin || !admin.isAdmin) {
             socket.emit('adminActionResponse', { success: false, message: 'Not authorized' });
             return;
         }
 
         if (!users[targetUsername]) {
             socket.emit('adminActionResponse', { success: false, message: 'User not found' });
+            return;
+        }
+
+        // prevent admins from banning other admins unless owner
+        if (users[targetUsername].isAdmin && !admin.isOwner) {
+            socket.emit('adminActionResponse', { success: false, message: 'Cannot ban another admin' });
             return;
         }
 
