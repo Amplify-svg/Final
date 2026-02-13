@@ -39,7 +39,7 @@ io.on('connection', (socket) => {
     const clientIP = socket.handshake.address;
     console.log('Client IP:', clientIP);
     
-    // Check if IP is banned
+    // Check if IP is bannedta1
     if (ipBanList.has(clientIP)) {
         socket.emit('banned', { message: 'Your IP address is banned.' });
         socket.disconnect();
