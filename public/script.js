@@ -14,11 +14,173 @@ else if (currentUser && pageId === 'page-login') window.location.href = 'index.h
 // Global Login
 if (currentUser) socket.emit('login', currentUser);
 
+// --- GLOBAL NOTIFICATION SYSTEM ---
+function showNotification(message, type = 'info') {
+    const container = document.getElementById('notifications-container');
+    if (!container) return;
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <span>${message}</span>
+        <button class="notification-close" onclick="this.parentElement.classList.add('removing'); setTimeout(() => this.parentElement.remove(), 300);">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    container.appendChild(notification);
+    playNotificationSound();
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.classList.add('removing');
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 5000);
+}
+
+socket.on('notification', (data) => {
+    showNotification(data.message, data.type || 'info');
+});
+
+socket.on('banned', (data) => {
+    alert(data.message);
+    localStorage.removeItem('chatUser');
+    window.location.href = 'login.html';
+});
+
 window.logout = function() {
     if(currentUser) socket.emit('chatLeave', currentUser.username); 
     localStorage.removeItem('chatUser');
     window.location.href = 'login.html';
 }
+
+// --- GLOBAL SETTINGS ---
+// --- GLOBAL SETTINGS STORAGE ---
+let userSettings = {
+    soundEnabled: localStorage.getItem('soundEnabled') === 'true',
+    panicLink: localStorage.getItem('panicLink') || 'https://google.com',
+    cloakTitle: localStorage.getItem('cloakTitle') || '',
+    cloakIcon: localStorage.getItem('cloakIcon') || ''
+};
+
+// Apply cloaking on page load
+function applyCloaking() {
+    if (userSettings.cloakTitle) {
+        document.title = userSettings.cloakTitle;
+    }
+    if (userSettings.cloakIcon) {
+        const link = document.querySelector("link[rel='icon']") || document.createElement('link');
+        link.rel = 'icon';
+        link.href = userSettings.cloakIcon;
+        if (!document.querySelector("link[rel='icon']")) {
+            document.head.appendChild(link);
+        }
+    }
+}
+
+// Play notification sound
+function playNotificationSound() {
+    if (!userSettings.soundEnabled) return;
+    
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+    } catch(e) {
+        console.log('Could not play sound:', e);
+    }
+}
+
+window.panicButtonAction = function() {
+    if (userSettings.panicLink) {
+        window.location.href = userSettings.panicLink;
+    } else {
+        alert('Panic link not set. Please set it in settings.');
+    }
+};
+
+window.toggleSettings = function() {
+    const modal = document.getElementById('settings-modal');
+    if(!modal) return;
+    
+    if(modal.classList.contains('hidden')) {
+        modal.classList.remove('hidden');
+        // Populate current values
+        document.getElementById('set-new-username').value = currentUser.username;
+        document.getElementById('set-new-pfp').value = '';
+        document.getElementById('set-new-password').value = '';
+        document.getElementById('current-username-display').innerText = currentUser.username;
+        document.getElementById('sound-toggle').checked = userSettings.soundEnabled;
+        document.getElementById('panic-link').value = userSettings.panicLink;
+        document.getElementById('cloak-title').value = userSettings.cloakTitle;
+        document.getElementById('cloak-icon').value = userSettings.cloakIcon;
+        
+        // Show current profile picture
+        const pfpPreview = document.getElementById('profile-pic-preview');
+        if(pfpPreview) {
+            pfpPreview.src = currentUser.pfp || 'https://i.pravatar.cc/150';
+        }
+    } else {
+        modal.classList.add('hidden');
+    }
+};
+
+window.saveSettings = function() {
+    const n = document.getElementById('set-new-username').value;
+    const p = document.getElementById('set-new-password').value;
+    const img = document.getElementById('set-new-pfp').value;
+    
+    // Save new settings
+    userSettings.soundEnabled = document.getElementById('sound-toggle').checked;
+    userSettings.panicLink = document.getElementById('panic-link').value || 'https://google.com';
+    userSettings.cloakTitle = document.getElementById('cloak-title').value;
+    userSettings.cloakIcon = document.getElementById('cloak-icon').value;
+    
+    localStorage.setItem('soundEnabled', userSettings.soundEnabled);
+    localStorage.setItem('panicLink', userSettings.panicLink);
+    localStorage.setItem('cloakTitle', userSettings.cloakTitle);
+    localStorage.setItem('cloakIcon', userSettings.cloakIcon);
+    
+    applyCloaking();
+    socket.emit('updateProfile', { newUsername: n, newPassword: p, newPfp: img });
+};
+
+socket.on('updateProfileResponse', (data) => {
+    if(data.success) {
+        const currentStore = JSON.parse(localStorage.getItem('chatUser'));
+        const passToSave = document.getElementById('set-new-password').value || currentStore.password;
+        const pfpToSave = data.pfp || currentStore.pfp || 'https://i.pravatar.cc/150';
+        const newCreds = { username: data.username, password: passToSave, isAdmin: currentUser.isAdmin, pfp: pfpToSave };
+        localStorage.setItem('chatUser', JSON.stringify(newCreds));
+        currentUser = newCreds;
+        
+        // Update display
+        const displayName = document.getElementById('display-name');
+        const displayPfp = document.getElementById('display-pfp');
+        if(displayName) displayName.innerText = data.username;
+        if(displayPfp) displayPfp.src = pfpToSave;
+        
+        alert("Profile updated!");
+        const modal = document.getElementById('settings-modal');
+        if(modal) modal.classList.add('hidden');
+    } else {
+        alert(data.message);
+    }
+});
 
 // --- TIME FORMATTER ---
 function formatTimeCentral(isoString) {
@@ -36,7 +198,13 @@ if (pageId === 'page-login') {
     const handleAuth = (data) => {
         if (data.success) {
             const pass = document.getElementById('password').value;
-            localStorage.setItem('chatUser', JSON.stringify({ username: data.username, password: pass }));
+            const userData = { 
+                username: data.username, 
+                password: pass,
+                isAdmin: data.isAdmin || false
+            };
+            localStorage.setItem('chatUser', JSON.stringify(userData));
+            currentUser = userData;
             window.location.href = 'index.html';
         } else {
             authError.innerText = data.message;
@@ -62,20 +230,236 @@ if (pageId === 'page-login') {
 if (pageId === 'page-home') {
     socket.on('loginResponse', (data) => {
         if(data.success) {
+            currentUser.isAdmin = data.isAdmin || false;
+            localStorage.setItem('chatUser', JSON.stringify(currentUser));
             document.getElementById('display-name').innerText = data.username;
             document.getElementById('display-pfp').src = data.pfp || 'https://i.pravatar.cc/150';
+            
+            // Show/hide admin button
+            const adminBtn = document.getElementById('admin-panel-btn');
+            if(adminBtn) adminBtn.style.display = data.isAdmin ? 'flex' : 'none';
         }
     });
+
+    // Tab visibility listener for yellow dot
+    document.addEventListener('visibilitychange', function() {
+        const isHidden = document.hidden;
+        const dots = document.querySelectorAll('.online-dot');
+        dots.forEach(dot => {
+            dot.style.color = isHidden ? '#FFD700' : 'var(--primary)';
+        });
+    });
+
     socket.on('updateUserList', (users) => {
         const list = document.getElementById('online-users-list');
         if(list) {
             list.innerHTML = '';
-            users.forEach(u => {
+            users.forEach(user => {
                 const li = document.createElement('li');
-                li.innerHTML = `<i class="fas fa-circle"></i> ${u}`;
+                const username = typeof user === 'string' ? user : user.username;
+                const pfp = typeof user === 'string' ? 'https://i.pravatar.cc/150?u=' + user : user.pfp;
+                const dotColor = document.hidden ? '#FFD700' : 'var(--primary)';
+                li.innerHTML = `<img src="${pfp}" alt="${username}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 8px;"><i class="fas fa-circle online-dot" style="font-size: 0.5rem; color: ${dotColor};"></i> ${username}`;
+                li.style.display = 'flex';
+                li.style.alignItems = 'center';
                 list.appendChild(li);
             });
         }
+    });
+
+    // Show admin button if admin
+    if(currentUser && currentUser.isAdmin) {
+        const adminBtn = document.getElementById('admin-panel-btn');
+        if(adminBtn) adminBtn.style.display = 'flex';
+    }
+
+    // Admin panel functionality
+    window.toggleAdminPanel = function() {
+        const modal = document.getElementById('admin-modal');
+        if(!modal) return;
+        
+        if(modal.classList.contains('hidden')) {
+            modal.classList.remove('hidden');
+            socket.emit('getAdminData');
+        } else {
+            modal.classList.add('hidden');
+        }
+    };
+
+    socket.on('adminDataResponse', (data) => {
+        if(!data.success) {
+            alert('Admin access denied');
+            return;
+        }
+        updateAdminPanelData(data);
+    });
+
+    function updateAdminPanelData(data) {
+        const usersList = document.getElementById('admin-users-list');
+        const messagesList = document.getElementById('admin-messages-list');
+        const deletedMsgsList = document.getElementById('admin-deleted-messages-list');
+        const userCountEl = document.getElementById('admin-user-count');
+        const messageCountEl = document.getElementById('admin-message-count');
+        const onlineCountEl = document.getElementById('admin-online-count');
+        const deletedCountEl = document.getElementById('admin-deleted-count');
+
+        if(userCountEl) userCountEl.innerText = data.users.length;
+        if(messageCountEl) messageCountEl.innerText = data.messageCount;
+        if(onlineCountEl) onlineCountEl.innerText = data.onlineUsers.length;
+        if(deletedCountEl) deletedCountEl.innerText = data.deletedMessageCount;
+
+        if(usersList) {
+            usersList.innerHTML = '';
+            data.users.forEach(user => {
+                const li = document.createElement('li');
+                const adminBadge = user.isAdmin ? ' <span style="color: var(--primary); font-weight: 700;">[ADMIN]</span>' : '';
+                const pfp = user.pfp || 'https://i.pravatar.cc/150';
+                li.style.marginBottom = '12px';
+                li.style.paddingBottom = '12px';
+                li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                li.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 10px;">
+                        <div style="display: flex; gap: 10px; align-items: flex-start; flex: 1;">
+                            <img src="${pfp}" alt="${user.username}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--primary); flex-shrink: 0;">
+                            <div style="flex: 1;">
+                                <span><strong>${user.username}</strong>${adminBadge}</span>
+                                <div style="font-size: 0.8rem; color: #999; margin-top: 4px;">Messages: ${user.messageCount}</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid ${user.isAdmin ? 'var(--danger)' : 'var(--primary)'};" onclick="toggleAdminUser('${user.username}', ${!user.isAdmin})">${user.isAdmin ? 'Remove Admin' : 'Make Admin'}</button>
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid var(--secondary);" onclick="viewUserMessages('${user.username}')">View</button>
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid #ffc107;" onclick="muteUser('${user.username}')">Mute</button>
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid #ff9800;" onclick="banUser('${user.username}')">Ban</button>
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid #ff5722;" onclick="ipBanUser('${user.username}')">IP Ban</button>
+                            <button class="btn-danger" style="padding: 4px 10px; font-size: 0.7rem;" onclick="deleteAdminUserAll('${user.username}')">Delete All</button>
+                        </div>
+                    </div>
+                `;
+                usersList.appendChild(li);
+            });
+        }
+
+        if(messagesList) {
+            messagesList.innerHTML = '';
+            const recentMsgs = data.totalMessages.slice(-5).reverse();
+            if(recentMsgs.length === 0) {
+                const li = document.createElement('li');
+                li.innerText = 'No messages';
+                li.style.color = '#999';
+                messagesList.appendChild(li);
+            } else {
+                recentMsgs.forEach(msg => {
+                    const li = document.createElement('li');
+                    const time = new Date(msg.timestamp).toLocaleTimeString();
+                    li.innerHTML = `<span style="font-weight: 600;">${msg.user}</span> <span style="color: #999;">${time}</span><br/><span style="font-size: 0.85rem;">"${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}"</span>`;
+                    li.style.marginBottom = '10px';
+                    li.style.paddingBottom = '10px';
+                    li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                    messagesList.appendChild(li);
+                });
+            }
+        }
+
+        if(deletedMsgsList) {
+            deletedMsgsList.innerHTML = '';
+            const recentDeleted = data.deletedMessages.slice(-5).reverse();
+            if(recentDeleted.length === 0) {
+                const li = document.createElement('li');
+                li.innerText = 'No deleted messages';
+                li.style.color = '#999';
+                deletedMsgsList.appendChild(li);
+            } else {
+                recentDeleted.forEach(msg => {
+                    const li = document.createElement('li');
+                    const time = new Date(msg.timestamp).toLocaleTimeString();
+                    const deletedTime = msg.deletedAt ? new Date(msg.deletedAt).toLocaleTimeString() : 'Unknown';
+                    li.innerHTML = `<span style="font-weight: 600;">${msg.user}</span> <span style="color: #d63031;">[DELETED by ${msg.deletedBy}]</span><br/><span style="font-size: 0.8rem; color: #999;">${time} → ${deletedTime}</span><br/><span style="font-size: 0.85rem; opacity: 0.6;">"${msg.text.substring(0, 40)}${msg.text.length > 40 ? '...' : ''}"</span>`;
+                    li.style.marginBottom = '10px';
+                    li.style.paddingBottom = '10px';
+                    li.style.borderBottom = '1px solid rgba(255,71,87,0.2)';
+                    deletedMsgsList.appendChild(li);
+                });
+            }
+        }
+    }
+
+    window.toggleAdminUser = function(username, makeAdmin) {
+        if(confirm(`${makeAdmin ? 'Promote' : 'Demote'} ${username}?`)) {
+            socket.emit('adminMakeAdmin', { targetUsername: username, makeAdmin: makeAdmin });
+        }
+    };
+
+    window.deleteAdminUserAll = function(username) {
+        if(confirm(`DELETE ALL data for ${username}? This includes all messages and account data. This CANNOT be undone!`)) {
+            socket.emit('adminDeleteUserData', { targetUsername: username });
+        }
+    };
+
+    window.viewUserMessages = function(username) {
+        socket.emit('adminGetUserMessages', { targetUsername: username });
+    };
+
+    socket.on('adminUserMessagesResponse', (data) => {
+        if(!data.success) {
+            alert('Could not fetch user messages');
+            return;
+        }
+
+        const userPfp = data.pfp || 'https://i.pravatar.cc/150?u=' + data.username;
+        let content = `<div style="text-align: center; margin-bottom: 20px;">
+            <img src="${userPfp}" alt="${data.username}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); margin-bottom: 10px;">
+            <h3 style="color: var(--primary); margin: 10px 0 0 0;">${data.username}'s Messages</h3>
+        </div>`;
+        content += `<div style="margin-bottom: 15px;"><strong>Active Messages: ${data.messages.length}</strong></div>`;
+        
+        if(data.messages.length > 0) {
+            content += '<div style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; margin-bottom: 15px;">';
+            data.messages.forEach(msg => {
+                const time = new Date(msg.timestamp).toLocaleTimeString();
+                content += `<div style="margin-bottom: 8px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);"><span style="color: #999;">${time}</span><br/><span>"${msg.text}"</span></div>`;
+            });
+            content += '</div>';
+        } else {
+            content += '<div style="color: #999; margin-bottom: 15px;">No active messages</div>';
+        }
+
+        content += `<div style="margin-bottom: 15px;"><strong>Deleted Messages: ${data.deletedMessages.length}</strong></div>`;
+        
+        if(data.deletedMessages.length > 0) {
+            content += '<div style="max-height: 300px; overflow-y: auto; background: rgba(255,71,87,0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,71,87,0.2);">';
+            data.deletedMessages.forEach(msg => {
+                const time = new Date(msg.timestamp).toLocaleTimeString();
+                const deletedTime = new Date(msg.deletedAt).toLocaleTimeString();
+                content += `<div style="margin-bottom: 8px; padding: 8px; border-bottom: 1px solid rgba(255,71,87,0.2);"><span style="color: #d63031;">[DELETED by ${msg.deletedBy}]</span><br/><span style="color: #999;">${time} → ${deletedTime}</span><br/><span>"${msg.text}"</span></div>`;
+            });
+            content += '</div>';
+        } else {
+            content += '<div style="color: #999;">No deleted messages</div>';
+        }
+
+        const modal = document.getElementById('user-messages-modal');
+        if(modal) {
+            modal.innerHTML = content + '<div style="display: flex; gap: 10px; margin-top: 15px;"><button onclick="this.parentElement.parentElement.classList.add(\'hidden\')" class="btn-outline" style="flex: 1;">Close</button></div>';
+            modal.classList.remove('hidden');
+        }
+    });
+
+    window.deleteAdminUser = function(username) {
+        if(confirm(`Delete user ${username}?`)) {
+            socket.emit('adminDeleteUser', { targetUsername: username });
+        }
+    };
+
+    window.clearAllMessages = function() {
+        if(confirm('Clear all messages? This cannot be undone.')) {
+            socket.emit('adminClearMessages');
+        }
+    };
+
+    socket.on('adminActionResponse', (data) => {
+        alert(data.message);
+        if(data.success) socket.emit('getAdminData');
     });
 }
 
@@ -91,6 +475,12 @@ if (pageId === 'page-chat') {
 
     socket.emit('chatJoin', currentUser.username);
 
+    // Show/hide admin button
+    if(currentUser && currentUser.isAdmin) {
+        const adminBtn = document.getElementById('admin-panel-btn');
+        if(adminBtn) adminBtn.style.display = 'flex';
+    }
+
     window.addEventListener('beforeunload', () => {
         socket.emit('chatLeave', currentUser.username);
     });
@@ -105,10 +495,15 @@ if (pageId === 'page-chat') {
     socket.on('updateUserList', (users) => {
         if(onlineList) {
             onlineList.innerHTML = '';
-            users.forEach(u => {
+            users.forEach(user => {
                 const li = document.createElement('li');
-                const isMe = u === currentUser.username ? " <span style='opacity:0.5'>(You)</span>" : "";
-                li.innerHTML = `<i class="fas fa-circle"></i> <span>${u}${isMe}</span>`;
+                const username = typeof user === 'string' ? user : user.username;
+                const pfp = typeof user === 'string' ? 'https://i.pravatar.cc/150?u=' + user : user.pfp;
+                const isMe = username === currentUser.username ? " <span style='opacity:0.5; margin-left: 8px;'>(You)</span>" : "";
+                const dotColor = document.hidden ? '#FFD700' : 'var(--primary)';
+                li.innerHTML = `<img src="${pfp}" alt="${username}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 8px;"><i class="fas fa-circle online-dot" style="font-size: 0.5rem; color: ${dotColor};"></i> <span>${username}${isMe}</span>`;
+                li.style.display = 'flex';
+                li.style.alignItems = 'center';
                 onlineList.appendChild(li);
             });
         }
@@ -150,6 +545,10 @@ if (pageId === 'page-chat') {
             
             const deleteHtml = isMe ? 
                 `<i class="fas fa-trash delete-icon" onclick="deleteMsg('${data.id}')" title="Delete"></i>` : '';
+            
+            // Admin can delete any message
+            const adminDeleteHtml = (currentUser && currentUser.isAdmin && !isMe) ? 
+                `<i class="fas fa-trash delete-icon" onclick="adminDeleteMsg('${data.id}')" title="Admin Delete" style="color: #ff4757;"></i>` : '';
 
             // Bubble content
             const nameColor = isMe ? '#000' : 'var(--primary)';
@@ -160,9 +559,13 @@ if (pageId === 'page-chat') {
                     
                     <div class="msg-bubble">
                         <div class="msg-header">
-                            <span class="username" style="color: ${nameColor}">${data.user}</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <img src="${pfp}" alt="${data.user}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;">
+                                <span class="username" style="color: ${nameColor}">${data.user}</span>
+                            </div>
                             <div style="display:flex; gap:8px; align-items:center;">
                                 <span class="timestamp">${timeStr}</span>
+                                ${adminDeleteHtml}
                                 ${deleteHtml}
                             </div>
                         </div>
@@ -210,36 +613,218 @@ if (pageId === 'page-chat') {
 
     // Actions
     window.deleteMsg = (id) => { if(confirm("Delete this message?")) socket.emit('deleteMessage', id); }
+    
+    // Admin delete any message
+    window.adminDeleteMsg = (id) => { 
+        if(confirm("Delete this message?")) {
+            socket.emit('adminDeleteMessage', { msgId: id });
+        }
+    }
+    
     socket.on('messageDeleted', (id) => { socket.emit('loadHistory'); });
 
-    // Settings Modal
-    const modal = document.getElementById('settings-modal');
-    window.toggleSettings = () => {
-        modal.classList.toggle('hidden');
-        if(!modal.classList.contains('hidden')) {
-            document.getElementById('set-new-username').value = currentUser.username;
+    // Admin panel functionality for chat
+    window.toggleAdminPanel = function() {
+        const modal = document.getElementById('admin-modal');
+        if(!modal) return;
+        
+        if(modal.classList.contains('hidden')) {
+            modal.classList.remove('hidden');
+            socket.emit('getAdminData');
+        } else {
+            modal.classList.add('hidden');
         }
     };
-    window.saveSettings = () => {
-        const n = document.getElementById('set-new-username').value;
-        const p = document.getElementById('set-new-password').value;
-        const img = document.getElementById('set-new-pfp').value;
-        socket.emit('updateProfile', { newUsername: n, newPassword: p, newPfp: img });
+
+    socket.on('adminDataResponse', (data) => {
+        if(!data.success) {
+            alert('Admin access denied');
+            return;
+        }
+        updateAdminPanelData(data);
+    });
+
+    function updateAdminPanelData(data) {
+        const usersList = document.getElementById('admin-users-list');
+        const messagesList = document.getElementById('admin-messages-list');
+        const deletedMsgsList = document.getElementById('admin-deleted-messages-list');
+        const userCountEl = document.getElementById('admin-user-count');
+        const messageCountEl = document.getElementById('admin-message-count');
+        const onlineCountEl = document.getElementById('admin-online-count');
+        const deletedCountEl = document.getElementById('admin-deleted-count');
+
+        if(userCountEl) userCountEl.innerText = data.users.length;
+        if(messageCountEl) messageCountEl.innerText = data.messageCount;
+        if(onlineCountEl) onlineCountEl.innerText = data.onlineUsers.length;
+        if(deletedCountEl) deletedCountEl.innerText = data.deletedMessageCount;
+
+        if(usersList) {
+            usersList.innerHTML = '';
+            data.users.forEach(user => {
+                const li = document.createElement('li');
+                const adminBadge = user.isAdmin ? ' <span style="color: var(--primary); font-weight: 700;">[ADMIN]</span>' : '';
+                li.style.marginBottom = '12px';
+                li.style.paddingBottom = '12px';
+                li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                li.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 10px;">
+                        <div style="flex: 1;">
+                            <span><i class="fas fa-user"></i> <strong>${user.username}</strong>${adminBadge}</span>
+                            <div style="font-size: 0.8rem; color: #999; margin-top: 4px;">Messages: ${user.messageCount}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid ${user.isAdmin ? 'var(--danger)' : 'var(--primary)'};" onclick="toggleAdminUser('${user.username}', ${!user.isAdmin})">${user.isAdmin ? 'Remove Admin' : 'Make Admin'}</button>
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid var(--secondary);" onclick="viewUserMessages('${user.username}')">View</button>
+                            <button class="btn-danger" style="padding: 4px 10px; font-size: 0.7rem;" onclick="deleteAdminUserAll('${user.username}')">Delete All</button>
+                        </div>
+                    </div>
+                `;
+                usersList.appendChild(li);
+            });
+        }
+
+        if(messagesList) {
+            messagesList.innerHTML = '';
+            const recentMsgs = data.totalMessages.slice(-5).reverse();
+            if(recentMsgs.length === 0) {
+                const li = document.createElement('li');
+                li.innerText = 'No messages';
+                li.style.color = '#999';
+                messagesList.appendChild(li);
+            } else {
+                recentMsgs.forEach(msg => {
+                    const li = document.createElement('li');
+                    const time = new Date(msg.timestamp).toLocaleTimeString();
+                    li.innerHTML = `<span style="font-weight: 600;">${msg.user}</span> <span style="color: #999;">${time}</span><br/><span style="font-size: 0.85rem;">"${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}"</span>`;
+                    li.style.marginBottom = '10px';
+                    li.style.paddingBottom = '10px';
+                    li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                    messagesList.appendChild(li);
+                });
+            }
+        }
+
+        if(deletedMsgsList) {
+            deletedMsgsList.innerHTML = '';
+            const recentDeleted = data.deletedMessages.slice(-5).reverse();
+            if(recentDeleted.length === 0) {
+                const li = document.createElement('li');
+                li.innerText = 'No deleted messages';
+                li.style.color = '#999';
+                deletedMsgsList.appendChild(li);
+            } else {
+                recentDeleted.forEach(msg => {
+                    const li = document.createElement('li');
+                    const time = new Date(msg.timestamp).toLocaleTimeString();
+                    const deletedTime = msg.deletedAt ? new Date(msg.deletedAt).toLocaleTimeString() : 'Unknown';
+                    li.innerHTML = `<span style="font-weight: 600;">${msg.user}</span> <span style="color: #d63031;">[DELETED by ${msg.deletedBy}]</span><br/><span style="font-size: 0.8rem; color: #999;">${time} → ${deletedTime}</span><br/><span style="font-size: 0.85rem; opacity: 0.6;">"${msg.text.substring(0, 40)}${msg.text.length > 40 ? '...' : ''}"</span>`;
+                    li.style.marginBottom = '10px';
+                    li.style.paddingBottom = '10px';
+                    li.style.borderBottom = '1px solid rgba(255,71,87,0.2)';
+                    deletedMsgsList.appendChild(li);
+                });
+            }
+        }
+    }
+
+    window.toggleAdminUser = function(username, makeAdmin) {
+        if(confirm(`${makeAdmin ? 'Promote' : 'Demote'} ${username}?`)) {
+            socket.emit('adminMakeAdmin', { targetUsername: username, makeAdmin: makeAdmin });
+        }
     };
-    socket.on('updateProfileResponse', (data) => {
-        if(data.success) {
-            const currentStore = JSON.parse(localStorage.getItem('chatUser'));
-            const passToSave = document.getElementById('set-new-password').value || currentStore.password;
-            const newCreds = { username: data.username, password: passToSave };
-            localStorage.setItem('chatUser', JSON.stringify(newCreds));
-            currentUser = newCreds;
-            alert("Updated!");
-            modal.classList.add('hidden');
+
+    window.deleteAdminUserAll = function(username) {
+        if(confirm(`DELETE ALL data for ${username}? This includes all messages and account data. This CANNOT be undone!`)) {
+            socket.emit('adminDeleteUserData', { targetUsername: username });
+        }
+    };
+
+    window.viewUserMessages = function(username) {
+        socket.emit('adminGetUserMessages', { targetUsername: username });
+    };
+
+    socket.on('adminUserMessagesResponse', (data) => {
+        if(!data.success) {
+            alert('Could not fetch user messages');
+            return;
+        }
+
+        const userPfp = data.pfp || 'https://i.pravatar.cc/150?u=' + data.username;
+        let content = `<div style="text-align: center; margin-bottom: 20px;">
+            <img src="${userPfp}" alt="${data.username}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); margin-bottom: 10px;">
+            <h3 style="color: var(--primary); margin: 10px 0 0 0;">${data.username}'s Messages</h3>
+        </div>`;
+        content += `<div style="margin-bottom: 15px;"><strong>Active Messages: ${data.messages.length}</strong></div>`;
+        
+        if(data.messages.length > 0) {
+            content += '<div style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; margin-bottom: 15px;">';
+            data.messages.forEach(msg => {
+                const time = new Date(msg.timestamp).toLocaleTimeString();
+                content += `<div style="margin-bottom: 8px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);"><span style="color: #999;">${time}</span><br/><span>"${msg.text}"</span></div>`;
+            });
+            content += '</div>';
         } else {
-            alert(data.message);
+            content += '<div style="color: #999; margin-bottom: 15px;">No active messages</div>';
+        }
+
+        content += `<div style="margin-bottom: 15px;"><strong>Deleted Messages: ${data.deletedMessages.length}</strong></div>`;
+        
+        if(data.deletedMessages.length > 0) {
+            content += '<div style="max-height: 300px; overflow-y: auto; background: rgba(255,71,87,0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,71,87,0.2);">';
+            data.deletedMessages.forEach(msg => {
+                const time = new Date(msg.timestamp).toLocaleTimeString();
+                const deletedTime = new Date(msg.deletedAt).toLocaleTimeString();
+                content += `<div style="margin-bottom: 8px; padding: 8px; border-bottom: 1px solid rgba(255,71,87,0.2);"><span style="color: #d63031;">[DELETED by ${msg.deletedBy}]</span><br/><span style="color: #999;">${time} → ${deletedTime}</span><br/><span>"${msg.text}"</span></div>`;
+            });
+            content += '</div>';
+        } else {
+            content += '<div style="color: #999;">No deleted messages</div>';
+        }
+
+        const modal = document.getElementById('user-messages-modal');
+        if(modal) {
+            modal.innerHTML = content + '<div style="display: flex; gap: 10px; margin-top: 15px;"><button onclick="this.parentElement.parentElement.classList.add(\'hidden\')" class="btn-outline" style="flex: 1;">Close</button></div>';
+            modal.classList.remove('hidden');
         }
     });
+
+    window.deleteAdminUser = function(username) {
+        if(confirm(`Delete user ${username}?`)) {
+            socket.emit('adminDeleteUser', { targetUsername: username });
+        }
+    };
+
+    window.clearAllMessages = function() {
+        if(confirm('Clear all messages? This cannot be undone.')) {
+            socket.emit('adminClearMessages');
+        }
+    };
+
+    socket.on('adminActionResponse', (data) => {
+        alert(data.message);
+        if(data.success) socket.emit('getAdminData');
+    });
 }
+
+// --- GLOBAL ADMIN CONTROL FUNCTIONS ---
+window.muteUser = function(username) {
+    const minutes = prompt('Mute for how many minutes?', '5');
+    if (minutes) {
+        socket.emit('adminMuteUser', { targetUsername: username, duration: parseInt(minutes) * 60000 });
+    }
+};
+
+window.banUser = function(username) {
+    if (confirm(`Ban ${username}? They won't be able to login.`)) {
+        socket.emit('adminBanUser', { targetUsername: username });
+    }
+};
+
+window.ipBanUser = function(username) {
+    if (confirm(`IP Ban ${username}? Their entire IP will be blocked.`)) {
+        socket.emit('adminIPBan', { targetUsername: username });
+    }
+};
 
 // ==========================================
 // --- PAGE: VIDEO CALL ---
@@ -251,6 +836,194 @@ if (pageId === 'page-call') {
     const userList = document.getElementById('call-users-list');
     const hangupBtn = document.getElementById('hangup-btn');
     const incomingModal = document.getElementById('incoming-modal');
+    
+    // Show/hide admin button
+    if(currentUser && currentUser.isAdmin) {
+        const adminBtn = document.getElementById('admin-panel-btn');
+        if(adminBtn) adminBtn.style.display = 'flex';
+    }
+
+    // Admin panel functionality for call page
+    window.toggleAdminPanel = function() {
+        const modal = document.getElementById('admin-modal');
+        if(!modal) return;
+        
+        if(modal.classList.contains('hidden')) {
+            modal.classList.remove('hidden');
+            socket.emit('getAdminData');
+        } else {
+            modal.classList.add('hidden');
+        }
+    };
+
+    socket.on('adminDataResponse', (data) => {
+        if(!data.success) {
+            alert('Admin access denied');
+            return;
+        }
+        updateAdminPanelData(data);
+    });
+
+    function updateAdminPanelData(data) {
+        const usersList = document.getElementById('admin-users-list');
+        const messagesList = document.getElementById('admin-messages-list');
+        const deletedMsgsList = document.getElementById('admin-deleted-messages-list');
+        const userCountEl = document.getElementById('admin-user-count');
+        const messageCountEl = document.getElementById('admin-message-count');
+        const onlineCountEl = document.getElementById('admin-online-count');
+        const deletedCountEl = document.getElementById('admin-deleted-count');
+
+        if(userCountEl) userCountEl.innerText = data.users.length;
+        if(messageCountEl) messageCountEl.innerText = data.messageCount;
+        if(onlineCountEl) onlineCountEl.innerText = data.onlineUsers.length;
+        if(deletedCountEl) deletedCountEl.innerText = data.deletedMessageCount;
+
+        if(usersList) {
+            usersList.innerHTML = '';
+            data.users.forEach(user => {
+                const li = document.createElement('li');
+                const adminBadge = user.isAdmin ? ' <span style="color: var(--primary); font-weight: 700;">[ADMIN]</span>' : '';
+                li.style.marginBottom = '12px';
+                li.style.paddingBottom = '12px';
+                li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                li.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 10px;">
+                        <div style="flex: 1;">
+                            <span><i class="fas fa-user"></i> <strong>${user.username}</strong>${adminBadge}</span>
+                            <div style="font-size: 0.8rem; color: #999; margin-top: 4px;">Messages: ${user.messageCount}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid ${user.isAdmin ? 'var(--danger)' : 'var(--primary)'};" onclick="toggleAdminUser('${user.username}', ${!user.isAdmin})">${user.isAdmin ? 'Remove Admin' : 'Make Admin'}</button>
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid var(--secondary);" onclick="viewUserMessages('${user.username}')">View</button>
+                            <button class="btn-danger" style="padding: 4px 10px; font-size: 0.7rem;" onclick="deleteAdminUserAll('${user.username}')">Delete All</button>
+                        </div>
+                    </div>
+                `;
+                usersList.appendChild(li);
+            });
+        }
+
+        if(messagesList) {
+            messagesList.innerHTML = '';
+            const recentMsgs = data.totalMessages.slice(-5).reverse();
+            if(recentMsgs.length === 0) {
+                const li = document.createElement('li');
+                li.innerText = 'No messages';
+                li.style.color = '#999';
+                messagesList.appendChild(li);
+            } else {
+                recentMsgs.forEach(msg => {
+                    const li = document.createElement('li');
+                    const time = new Date(msg.timestamp).toLocaleTimeString();
+                    li.innerHTML = `<span style="font-weight: 600;">${msg.user}</span> <span style="color: #999;">${time}</span><br/><span style="font-size: 0.85rem;">"${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}"</span>`;
+                    li.style.marginBottom = '10px';
+                    li.style.paddingBottom = '10px';
+                    li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                    messagesList.appendChild(li);
+                });
+            }
+        }
+
+        if(deletedMsgsList) {
+            deletedMsgsList.innerHTML = '';
+            const recentDeleted = data.deletedMessages.slice(-5).reverse();
+            if(recentDeleted.length === 0) {
+                const li = document.createElement('li');
+                li.innerText = 'No deleted messages';
+                li.style.color = '#999';
+                deletedMsgsList.appendChild(li);
+            } else {
+                recentDeleted.forEach(msg => {
+                    const li = document.createElement('li');
+                    const time = new Date(msg.timestamp).toLocaleTimeString();
+                    const deletedTime = msg.deletedAt ? new Date(msg.deletedAt).toLocaleTimeString() : 'Unknown';
+                    li.innerHTML = `<span style="font-weight: 600;">${msg.user}</span> <span style="color: #d63031;">[DELETED by ${msg.deletedBy}]</span><br/><span style="font-size: 0.8rem; color: #999;">${time} → ${deletedTime}</span><br/><span style="font-size: 0.85rem; opacity: 0.6;">"${msg.text.substring(0, 40)}${msg.text.length > 40 ? '...' : ''}"</span>`;
+                    li.style.marginBottom = '10px';
+                    li.style.paddingBottom = '10px';
+                    li.style.borderBottom = '1px solid rgba(255,71,87,0.2)';
+                    deletedMsgsList.appendChild(li);
+                });
+            }
+        }
+    }
+
+    window.toggleAdminUser = function(username, makeAdmin) {
+        if(confirm(`${makeAdmin ? 'Promote' : 'Demote'} ${username}?`)) {
+            socket.emit('adminMakeAdmin', { targetUsername: username, makeAdmin: makeAdmin });
+        }
+    };
+
+    window.deleteAdminUserAll = function(username) {
+        if(confirm(`DELETE ALL data for ${username}? This includes all messages and account data. This CANNOT be undone!`)) {
+            socket.emit('adminDeleteUserData', { targetUsername: username });
+        }
+    };
+
+    window.viewUserMessages = function(username) {
+        socket.emit('adminGetUserMessages', { targetUsername: username });
+    };
+
+    socket.on('adminUserMessagesResponse', (data) => {
+        if(!data.success) {
+            alert('Could not fetch user messages');
+            return;
+        }
+
+        const userPfp = data.pfp || 'https://i.pravatar.cc/150?u=' + data.username;
+        let content = `<div style="text-align: center; margin-bottom: 20px;">
+            <img src="${userPfp}" alt="${data.username}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); margin-bottom: 10px;">
+            <h3 style="color: var(--primary); margin: 10px 0 0 0;">${data.username}'s Messages</h3>
+        </div>`;
+        content += `<div style="margin-bottom: 15px;"><strong>Active Messages: ${data.messages.length}</strong></div>`;
+        
+        if(data.messages.length > 0) {
+            content += '<div style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; margin-bottom: 15px;">';
+            data.messages.forEach(msg => {
+                const time = new Date(msg.timestamp).toLocaleTimeString();
+                content += `<div style="margin-bottom: 8px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);"><span style="color: #999;">${time}</span><br/><span>"${msg.text}"</span></div>`;
+            });
+            content += '</div>';
+        } else {
+            content += '<div style="color: #999; margin-bottom: 15px;">No active messages</div>';
+        }
+
+        content += `<div style="margin-bottom: 15px;"><strong>Deleted Messages: ${data.deletedMessages.length}</strong></div>`;
+        
+        if(data.deletedMessages.length > 0) {
+            content += '<div style="max-height: 300px; overflow-y: auto; background: rgba(255,71,87,0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,71,87,0.2);">';
+            data.deletedMessages.forEach(msg => {
+                const time = new Date(msg.timestamp).toLocaleTimeString();
+                const deletedTime = new Date(msg.deletedAt).toLocaleTimeString();
+                content += `<div style="margin-bottom: 8px; padding: 8px; border-bottom: 1px solid rgba(255,71,87,0.2);"><span style="color: #d63031;">[DELETED by ${msg.deletedBy}]</span><br/><span style="color: #999;">${time} → ${deletedTime}</span><br/><span>"${msg.text}"</span></div>`;
+            });
+            content += '</div>';
+        } else {
+            content += '<div style="color: #999;">No deleted messages</div>';
+        }
+
+        const modal = document.getElementById('user-messages-modal');
+        if(modal) {
+            modal.innerHTML = content + '<div style="display: flex; gap: 10px; margin-top: 15px;"><button onclick="this.parentElement.parentElement.classList.add(\'hidden\')" class="btn-outline" style="flex: 1;">Close</button></div>';
+            modal.classList.remove('hidden');
+        }
+    });
+
+    window.deleteAdminUser = function(username) {
+        if(confirm(`Delete user ${username}?`)) {
+            socket.emit('adminDeleteUser', { targetUsername: username });
+        }
+    };
+
+    window.clearAllMessages = function() {
+        if(confirm('Clear all messages? This cannot be undone.')) {
+            socket.emit('adminClearMessages');
+        }
+    };
+
+    socket.on('adminActionResponse', (data) => {
+        alert(data.message);
+        if(data.success) socket.emit('getAdminData');
+    });
     
     let localStream, remoteStream, peerConnection, pendingOffer, callerName;
     let iceQueue = [], earlyCandidates = [];
@@ -286,13 +1059,16 @@ if (pageId === 'page-call') {
     socket.on('updateUserList', (users) => {
         console.log('Call page - updateUserList:', users);
         userList.innerHTML = '';
-        users.forEach(u => {
-            if (u === currentUser.username) return;
+        users.forEach(user => {
+            const username = typeof user === 'string' ? user : user.username;
+            const pfp = typeof user === 'string' ? 'https://i.pravatar.cc/150?u=' + user : user.pfp;
+            if (username === currentUser.username) return;
             const li = document.createElement('li');
+            const dotColor = document.hidden ? '#FFD700' : '#00e676';
             li.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;';
             li.innerHTML = `
-                <span><i class="fas fa-circle" style="color:#00e676; margin-right:5px;"></i> ${u}</span>
-                <button class="call-icon-btn" onclick="startCall('${u}')" style="background:#00e676; border:none; width:30px; height:30px; border-radius:50%; cursor:pointer;"><i class="fas fa-video"></i></button>
+                <span style="display: flex; align-items: center; gap: 8px;"><img src="${pfp}" alt="${username}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;"><i class="fas fa-circle online-dot" style="color:${dotColor}; font-size: 0.5rem;"></i> ${username}</span>
+                <button class="call-icon-btn" onclick="startCall('${username}')" style="background:#00e676; border:none; width:30px; height:30px; border-radius:50%; cursor:pointer;"><i class="fas fa-video"></i></button>
             `;
             userList.appendChild(li);
         });
@@ -431,3 +1207,6 @@ if (pageId === 'page-call') {
         earlyCandidates = [];
     }
 }
+
+// Apply cloaking on page load
+window.addEventListener('load', applyCloaking);

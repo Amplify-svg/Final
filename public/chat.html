@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Room - Nexus</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Real-time Chat - Nexus Revived">
+    <meta name="theme-color" content="#050505">
+    <title>Chat Room - Nexus Revived</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -14,12 +16,19 @@
     <div class="app-container">
         <header class="dashboard-header fade-in">
             <div class="brand">
-                <i class="fas fa-comments" style="color: var(--primary);"></i> Nexus Chat
+                <i class="fas fa-comments" style="color: var(--primary);"></i> Chat Room
             </div>
-            <button onclick="window.location.href='index.html'" class="btn-danger" style="padding: 8px 16px; font-size: 0.9rem;">
-                <i class="fas fa-door-open"></i> Exit
-            </button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="admin-panel-btn" onclick="toggleAdminPanel()" class="btn-outline" style="display: none; min-width: 100px; font-size: 0.8rem; padding: 8px 12px;">
+                    <i class="fas fa-shield-alt"></i> Admin
+                </button>
+                <button onclick="window.location.href='index.html'" class="btn-danger" style="min-width: 120px; font-size: 0.95rem;">
+                    <i class="fas fa-door-open"></i> Exit
+                </button>
+            </div>
         </header>
+
+        <div id="notifications-container" style="position: fixed; top: 80px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; max-width: 400px;"></div>
 
         <div class="chat-layout fade-in delay-1">
             
@@ -67,18 +76,88 @@
         </div>
     </div>
 
-    <div id="settings-modal" class="hidden glass-panel centered-panel">
-        <h2 style="color: var(--primary);">Edit Profile</h2>
-        <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 20px;">Update your digital persona.</p>
+    <div id="settings-modal" class="hidden glass-panel centered-panel" style="max-width: 500px;">
+        <h2 style="color: var(--primary); margin-top: 0; text-align: center;">Edit Profile</h2>
+        <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 20px; text-align: center;">Update your digital persona.</p>
         
-        <input type="text" id="set-new-username" placeholder="New Username">
-        <input type="text" id="set-new-pfp" placeholder="New Avatar URL">
-        <input type="password" id="set-new-password" placeholder="New Password">
+        <div style="text-align: center; margin-bottom: 25px;">
+            <img id="profile-pic-preview" src="" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; margin-bottom: 15px;">
+            <div style="color: #ccc; font-size: 0.9rem;"><i class="fas fa-circle" style="color: var(--primary);"></i> <span id="current-username-display">Loading...</span></div>
+        </div>
+        
+        <input type="text" id="set-new-username" placeholder="New Username" style="margin-bottom: 12px;">
+        <input type="text" id="set-new-pfp" placeholder="New Avatar URL" style="margin-bottom: 12px;">
+        <input type="password" id="set-new-password" placeholder="New Password" style="margin-bottom: 12px;">
+        
+        <div style="margin: 20px 0; padding: 15px; background: rgba(0,230,118,0.05); border-radius: 8px; border: 1px solid rgba(0,230,118,0.2);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; color: #ccc;">
+                <label for="sound-toggle" style="cursor: pointer; display: flex; align-items: center; gap: 8px; flex: 1;">
+                    <input type="checkbox" id="sound-toggle" style="cursor: pointer;">
+                    <span><i class="fas fa-volume-up"></i> Sound Notifications</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 6px;">Panic Button Link:</label>
+                <input type="text" id="panic-link" placeholder="e.g., https://google.com" style="margin-bottom: 8px;">
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 6px;">Cloak Tab Title:</label>
+                <input type="text" id="cloak-title" placeholder="e.g., Google Docs" style="margin-bottom: 8px;">
+            </div>
+            <div style="margin-bottom: 0;">
+                <label style="display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 6px;">Cloak Tab Icon:</label>
+                <input type="text" id="cloak-icon" placeholder="e.g., https://google.com/favicon.ico" style="margin-bottom: 0;">
+            </div>
+        </div>
         
         <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button onclick="saveSettings()" class="btn-glow" style="flex: 1;">Save</button>
+            <button onclick="saveSettings()" class="btn-glow" style="flex: 1;">Save Changes</button>
+            <button onclick="panicButtonAction()" class="btn-danger" style="flex: 1;"><i class="fas fa-exclamation-triangle"></i> PANIC</button>
             <button onclick="toggleSettings()" class="btn-outline" style="flex: 1; border: 1px solid #555;">Cancel</button>
         </div>
+    </div>
+
+    <div id="admin-modal" class="hidden glass-panel centered-panel" style="max-width: 700px; max-height: 85vh; overflow-y: auto;">
+        <h2 style="color: var(--primary); margin-top: 0;">Admin Dashboard</h2>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 25px;">
+            <div style="background: rgba(0, 230, 118, 0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 1.8rem; font-weight: 700; color: var(--primary);" id="admin-user-count">0</div>
+                <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Total Users</div>
+            </div>
+            <div style="background: rgba(41, 121, 255, 0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 1.8rem; font-weight: 700; color: var(--secondary);" id="admin-online-count">0</div>
+                <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Online</div>
+            </div>
+            <div style="background: rgba(255, 71, 87, 0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 1.8rem; font-weight: 700; color: var(--danger);" id="admin-message-count">0</div>
+                <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Messages</div>
+            </div>
+            <div style="background: rgba(255, 193, 7, 0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 1.8rem; font-weight: 700; color: #ffc107;" id="admin-deleted-count">0</div>
+                <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Deleted</div>
+            </div>
+        </div>
+
+        <h3 style="color: white; margin: 20px 0 10px 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">Registered Users</h3>
+        <ul id="admin-users-list" style="list-style: none; padding: 0; margin: 0; max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; margin-bottom: 15px;">
+        </ul>
+
+        <h3 style="color: white; margin: 20px 0 10px 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">Recent Messages</h3>
+        <ul id="admin-messages-list" style="list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; margin-bottom: 15px; color: #ccc; font-size: 0.9rem;">
+        </ul>
+
+        <h3 style="color: white; margin: 20px 0 10px 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">Deleted Messages</h3>
+        <ul id="admin-deleted-messages-list" style="list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto; background: rgba(255,71,87,0.08); padding: 10px; border-radius: 10px; margin-bottom: 15px; color: #ccc; font-size: 0.9rem; border: 1px solid rgba(255,71,87,0.2);">
+        </ul>
+
+        <div style="display: flex; gap: 10px;">
+            <button onclick="clearAllMessages()" class="btn-danger" style="flex: 1;">Clear All Messages</button>
+            <button onclick="toggleAdminPanel()" class="btn-outline" style="flex: 1; border: 1px solid #555;">Close</button>
+        </div>
+    </div>
+
+    <div id="user-messages-modal" class="hidden glass-panel centered-panel" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
