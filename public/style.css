@@ -223,8 +223,10 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
    ========================================= */
 .app-container {
     max-width: 1400px; margin: 0 auto; padding: 20px;
-    height: 100vh; box-sizing: border-box;
+    min-height: 100vh; box-sizing: border-box;
     display: flex; flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 .dashboard-header { 
     display: flex; 
@@ -284,7 +286,7 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
 
 .dashboard-grid { 
     display: grid; grid-template-columns: 3fr 1fr; gap: 20px; 
-    flex: 1; height: 100%; overflow: hidden; 
+    flex: 1; min-height: auto; overflow: visible; 
 }
 .main-content { display: flex; flex-direction: column; gap: 20px; }
 .welcome-banner { 
@@ -316,7 +318,7 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
     transition: all 0.3s ease; 
     position: relative; 
     overflow: hidden; 
-    height: 140px; 
+    min-height: 140px; 
     display: flex; 
     flex-direction: column; 
     justify-content: space-between; 
@@ -340,7 +342,8 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
 .members-panel { 
     display: flex; 
     flex-direction: column; 
-    height: 100%; 
+    height: auto; 
+    max-height: 500px;
     overflow: hidden; 
     padding: 20px; 
     border-radius: 16px;
@@ -465,7 +468,7 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
     flex-direction: column; 
     padding: 20px; 
     position: relative; 
-    overflow: hidden;
+    overflow-y: auto;
     border-radius: 16px;
 }
 #messages {
@@ -814,9 +817,9 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
     }
 
     /* chat page adjustments */
-    .chat-layout { flex-direction: column; gap: 15px; height: auto; }
-    .chat-sidebar { width: 100%; height: auto; }
-    .chat-main { height: auto; min-height: 400px; }
+    .chat-layout { flex-direction: column; gap: 15px; height: auto; overflow: visible; }
+    .chat-sidebar { width: 100%; height: auto; max-height: 300px; overflow-y: auto; }
+    .chat-main { height: auto; min-height: 300px; overflow: visible; }
 
     /* call page tweaks */
     #local-video { width: 150px; height: 100px; bottom: 15px; right: 15px; }
@@ -913,6 +916,13 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
     /* smaller header padding and stacking */
     .dashboard-header {
         padding: 0 10px;
+        flex-wrap: wrap;
+    }
+    .dashboard-header .brand,
+    .dashboard-header .user-pill,
+    .dashboard-header button {
+        width: 100%;
+        margin-bottom: 8px;
     }
 
     /* shrink call-control icons */
