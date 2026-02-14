@@ -795,19 +795,46 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
    8. RESPONSIVE DESIGN
    ========================================= */
 @media (max-width: 768px) {
+    /* general container tweaks */
     .app-container { padding: 15px; }
     .dashboard-grid { grid-template-columns: 1fr; }
     .actions-grid { grid-template-columns: 1fr; }
+
+    /* header becomes vertical stack on narrower devices */
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .dashboard-header .brand { font-size: 1.2rem; }
+    .dashboard-header .user-pill,
+    .dashboard-header button {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* chat page adjustments */
     .chat-layout { flex-direction: column; gap: 15px; height: auto; }
     .chat-sidebar { width: 100%; height: auto; }
     .chat-main { height: auto; min-height: 400px; }
+
+    /* call page tweaks */
     #local-video { width: 150px; height: 100px; bottom: 15px; right: 15px; }
     .call-controls { padding: 10px 15px; gap: 10px; }
     .control-btn { width: 40px; height: 40px; font-size: 1rem; }
     .call-overlay { width: 100%; max-width: none; top: auto; bottom: 0; left: 0; right: 0; border-radius: 20px 20px 0 0; }
     #call-users-list li span { font-size: 0.9rem; }
+
+    /* login/other pages */
     .login-card { padding: 30px; }
     .members-panel { width: 100%; }
+
+    /* notifications container narrower */
+    #notifications-container {
+        right: 10px;
+        left: 10px;
+        max-width: calc(100% - 20px);
+    }
 }
 
 
@@ -876,9 +903,27 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
 }
 
 @media (max-width: 480px) {
+    /* tighter notifications */
     .notification {
-        min-width: 250px;
-        font-size: 0.85rem;
-        padding: 10px 12px;
+        min-width: 200px;
+        font-size: 0.8rem;
+        padding: 8px 10px;
+    }
+
+    /* smaller header padding and stacking */
+    .dashboard-header {
+        padding: 0 10px;
+    }
+
+    /* shrink call-control icons */
+    .control-btn { width: 36px; height: 36px; font-size: 0.9rem; }
+
+    /* compact action cards on home page */
+    .actions-grid .action-card { padding: 15px; }
+
+    /* modals and panels more full-width */
+    #admin-modal, #user-messages-modal, #settings-modal, .centered-panel {
+        width: 95%;
+        padding: 20px;
     }
 }
