@@ -99,6 +99,31 @@ io.on('connection', (socket) => {
         });
     });
 
+    socket.on('adminDeleteGame', ({ filename }) => {
+        const adminUsername = connectedSockets[socket.id];
+        const admin = users[adminUsername];
+        if (!adminUsername || !admin || !admin.isAdmin) {
+            socket.emit('adminActionResponse', { success: false, message: 'Not authorized' });
+            return;
+        }
+        if (!filename) {
+            socket.emit('adminActionResponse', { success: false, message: 'Filename required' });
+            return;
+        }
+        // sanitize filename to avoid traversal
+        filename = path.basename(filename);
+        const filePath = path.join(gamesDir, filename);
+        fs.unlink(filePath, (err) => {
+            if (err) {
+                console.error('game delete error', err);
+                socket.emit('adminActionResponse', { success: false, message: 'Failed to delete game' });
+            } else {
+                socket.emit('adminActionResponse', { success: true, message: `Game ${filename} deleted` });
+                io.emit('gameDeleted', { filename });
+            }
+        });
+    });
+
     // HTTP API for listing games
     app.get('/api/games', (req, res) => {
         fs.readdir(gamesDir, (err, files) => {

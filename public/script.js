@@ -14,6 +14,39 @@ else if (currentUser && pageId === 'page-login') window.location.href = 'index.h
 // Global Login
 if (currentUser) socket.emit('login', currentUser);
 
+// --- GLOBAL SETTINGS STORAGE ---
+let userSettings = {
+    soundEnabled: localStorage.getItem('soundEnabled') === 'true',
+    panicLink: localStorage.getItem('panicLink') || 'https://google.com',
+    cloakTitle: localStorage.getItem('cloakTitle') || '',
+    cloakIcon: localStorage.getItem('cloakIcon') || ''
+};
+
+// Play notification sound
+function playNotificationSound() {
+    if (!userSettings.soundEnabled) return;
+    
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+    } catch(e) {
+        console.log('Could not play sound:', e);
+    }
+}
+
 // --- GLOBAL NOTIFICATION SYSTEM ---
 function showNotification(message, type = 'info') {
     const container = document.getElementById('notifications-container');
@@ -56,16 +89,6 @@ window.logout = function() {
     window.location.href = 'login.html';
 }
 
-// --- GLOBAL SETTINGS ---
-// --- GLOBAL SETTINGS STORAGE ---
-let userSettings = {
-    soundEnabled: localStorage.getItem('soundEnabled') === 'true',
-    panicLink: localStorage.getItem('panicLink') || 'https://google.com',
-    panicShortcut: localStorage.getItem('panicShortcut') || 'Ctrl+Shift+P,Escape',
-    cloakTitle: localStorage.getItem('cloakTitle') || '',
-    cloakIcon: localStorage.getItem('cloakIcon') || ''
-};
-
 // Apply cloaking on page load
 function applyCloaking() {
     if (userSettings.cloakTitle) {
@@ -81,51 +104,13 @@ function applyCloaking() {
     }
 }
 
-// global keyboard shortcut for panic button
-// checks configured shortcut
-
-document.addEventListener('keydown', (e) => {
-    // ignore when typing
-    const active = document.activeElement;
-    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
-
-    if (eventMatchesShortcut(e, userSettings.panicShortcut)) {
-        panicButtonAction();
-    }
-});
-
-// Play notification sound
-function playNotificationSound() {
-    if (!userSettings.soundEnabled) return;
-    
-    try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
-    } catch(e) {
-        console.log('Could not play sound:', e);
-    }
-}
-
 window.panicButtonAction = function() {
     if (userSettings.panicLink) {
         window.location.href = userSettings.panicLink;
     } else {
         alert('Panic link not set. Please set it in settings.');
     }
-};
+}
 
 // add beforeunload confirmation every time
 window.addEventListener('beforeunload', function (e) {
@@ -137,27 +122,103 @@ window.addEventListener('beforeunload', function (e) {
 // helper to setup game upload button (if present on page)
 function setupGameUpload() {
     const btn = document.getElementById('upload-game-btn');
-    if (!btn) return;
+    const fileInput = document.getElementById('upload-game-file');
+    if (!btn || !fileInput) return;
+    
     btn.onclick = () => {
-        const fname = document.getElementById('upload-game-filename').value.trim();
-        const content = document.getElementById('upload-game-content').value;
-        if (!fname || !content) {
-            alert('Provide filename and HTML content');
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Select a file first');
             return;
         }
-        socket.emit('adminUploadGame', { filename: fname, content });
+        if (!file.name.toLowerCase().endsWith('.html')) {
+            alert('Please select an HTML file');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target.result;
+            if (content.length > 5000000) {
+                alert('File too large (max 5MB)');
+                return;
+            }
+            socket.emit('adminUploadGame', { filename: file.name, content });
+            fileInput.value = '';
+            showNotification('Game uploading...', 'info');
+        };
+        reader.readAsText(file);
     };
+    
+    // Allow drag and drop
+    const dropZone = document.getElementById('game-upload-zone');
+    if (dropZone) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.style.backgroundColor = 'rgba(0, 230, 118, 0.1)';
+                dropZone.style.borderColor = 'var(--primary)';
+            }, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.style.backgroundColor = '';
+                dropZone.style.borderColor = '';
+            }, false);
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.toLowerCase().endsWith('.html')) {
+                fileInput.files = e.dataTransfer.files;
+                btn.click();
+            } else {
+                alert('Please drop an HTML file');
+            }
+        }, false);
+    }
 }
 // call once now in case elements exist
 setupGameUpload();
 
 // global listener for new games
 socket.on('newGameUploaded', ({filename}) => {
-    showNotification(`New game uploaded: ${filename}`, 'info');
+    showNotification(`New game uploaded: ${filename}`, 'success');
 });
 
-// helper to compare keyboard events against a shortcut string
-function eventMatchesShortcut(e, shortcutStr) {
+// listener for admin upload responses
+socket.on('adminActionResponse', (data) => {
+    if (data.success) {
+        showNotification(data.message, 'success');
+    } else {
+        showNotification(data.message, 'error');
+    }
+});
+
+// Keyboard shortcut listener for panic button
+document.addEventListener('keydown', function handlePanicKey(e) {
+    // Skip if user is typing in an input field
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+        return;
+    }
+    
+    // Check for Ctrl+Shift+P
+    if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Panic key activated');
+        panicButtonAction();
+    }
+}, true);
 
 // helper to compare keyboard events against a shortcut string
 function eventMatchesShortcut(e, shortcutStr) {

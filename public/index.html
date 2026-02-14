@@ -125,9 +125,14 @@
 
         <div style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
             <h3 style="color:#fff; font-size:0.95rem;">Upload Game HTML</h3>
-            <input type="text" id="upload-game-filename" placeholder="filename.html" style="width:100%; margin-bottom:8px;">
-            <textarea id="upload-game-content" placeholder="Paste HTML here" style="width:100%; height:120px;"></textarea>
-            <button id="upload-game-btn" class="btn-glow" style="margin-top:8px; width:100%;">Upload</button>
+            <div id="game-upload-zone" style="border: 2px dashed rgba(0,230,118,0.3); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 10px; transition: all 0.3s;">
+                <i class="fas fa-cloud-upload-alt" style="color: var(--primary); font-size: 1.5rem; margin-bottom: 8px;"></i>
+                <p style="color: #aaa; margin: 0;">Drag & drop HTML file here or click to select</p>
+            </div>
+            <input type="file" id="upload-game-file" accept=".html" style="display: none;">
+            <button id="upload-game-btn" class="btn-glow" style="width:100%;">
+                <i class="fas fa-upload"></i> Upload Game
+            </button>
         </div>
         <div style="display: flex; gap: 10px; margin-top:20px;">
             <button onclick="clearAllMessages()" class="btn-danger" style="flex: 1;">Clear All Messages</button>
