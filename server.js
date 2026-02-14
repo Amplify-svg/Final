@@ -70,66 +70,181 @@ io.on('connection', (socket) => {
 
     // --- AUTHENTICATION ---
 
-    // Admin route for uploading a game HTML file
-    socket.on('adminUploadGame', ({ filename, content }) => {
+    // Admin route for uploading a game folder
+    socket.on('adminUploadGame', ({ folderName, files }) => {
         const adminUsername = connectedSockets[socket.id];
         const admin = users[adminUsername];
         if (!adminUsername || !admin || !admin.isAdmin) {
             socket.emit('adminActionResponse', { success: false, message: 'Not authorized' });
             return;
         }
-        if (!filename || !content) {
-            socket.emit('adminActionResponse', { success: false, message: 'Filename and content required' });
+        if (!folderName || !files || typeof files !== 'object') {
+            socket.emit('adminActionResponse', { success: false, message: 'Folder name and files required' });
             return;
         }
-        // sanitize filename to avoid traversal
-        filename = path.basename(filename);
-        if (!filename.toLowerCase().endsWith('.html')) {
-            filename += '.html';
-        }
-        const filePath = path.join(gamesDir, filename);
-        fs.writeFile(filePath, content, (err) => {
+        
+        // sanitize folder name
+        folderName = path.basename(folderName).replace(/\.[^/.]+$/, '');
+        const gameFolderPath = path.join(gamesDir, folderName);
+        
+        // Create folder
+        fs.mkdir(gameFolderPath, { recursive: true }, (err) => {
             if (err) {
-                console.error('game write error', err);
-                socket.emit('adminActionResponse', { success: false, message: 'Failed to save game' });
-            } else {
-                socket.emit('adminActionResponse', { success: true, message: `Game ${filename} uploaded` });
-                io.emit('newGameUploaded', { filename });
+                console.error('game folder creation error', err);
+                socket.emit('adminActionResponse', { success: false, message: 'Failed to create game folder' });
+                return;
             }
+            
+            // Write all files
+            let written = 0;
+            let errors = 0;
+            const fileCount = Object.keys(files).length;
+            
+            if (fileCount === 0) {
+                socket.emit('adminActionResponse', { success: false, message: 'No files provided' });
+                return;
+            }
+            
+            Object.entries(files).forEach(([filePath, content]) => {
+                // Prevent directory traversal
+                const cleanPath = path.normalize(filePath).replace(/^(\.\.[\/\\])+/, '');
+                const fullPath = path.join(gameFolderPath, cleanPath);
+                
+                // Ensure file is within the game folder
+                if (!fullPath.startsWith(gameFolderPath)) {
+                    errors++;
+                    if (written + errors === fileCount) {
+                        io.emit('newGameUploaded', { folderName });
+                        socket.emit('adminActionResponse', { 
+                            success: true, 
+                            message: `Game "${folderName}" uploaded (${written}/${fileCount} files)` 
+                        });
+                    }
+                    return;
+                }
+                
+                // Create nested directories
+                const fileDir = path.dirname(fullPath);
+                fs.mkdir(fileDir, { recursive: true }, (err) => {
+                    if (err) {
+                        errors++;
+                    } else {
+                        // Handle different content types
+                        let fileContent = content;
+                        
+                        // If it's a string that looks like base64
+                        if (typeof content === 'string' && content.startsWith('data:')) {
+                            try {
+                                fileContent = Buffer.from(content.split(',')[1], 'base64');
+                            } catch (e) {
+                                fileContent = content;
+                            }
+                        } 
+                        // If it's an object (likely from ArrayBuffer being sent via Socket.io), convert to buffer
+                        else if (content && typeof content === 'object' && content.type === 'Buffer' && Array.isArray(content.data)) {
+                            fileContent = Buffer.from(content.data);
+                        }
+                        // If it's already a Buffer, keep as is
+                        // Otherwise keep as string
+                        
+                        fs.writeFile(fullPath, fileContent, (err) => {
+                            if (!err) written++;
+                            else errors++;
+                            
+                            if (written + errors === fileCount) {
+                                io.emit('newGameUploaded', { folderName });
+                                socket.emit('adminActionResponse', { 
+                                    success: true, 
+                                    message: `Game "${folderName}" uploaded successfully` 
+`},{},
+                                });
+                            }
+                        });
+                    }
+                });
+            });
         });
     });
 
-    socket.on('adminDeleteGame', ({ filename }) => {
+    socket.on('adminDeleteGame', ({ folderName }) => {
         const adminUsername = connectedSockets[socket.id];
         const admin = users[adminUsername];
         if (!adminUsername || !admin || !admin.isAdmin) {
             socket.emit('adminActionResponse', { success: false, message: 'Not authorized' });
             return;
         }
-        if (!filename) {
-            socket.emit('adminActionResponse', { success: false, message: 'Filename required' });
+        if (!folderName) {
+            socket.emit('adminActionResponse', { success: false, message: 'Folder name required' });
             return;
         }
-        // sanitize filename to avoid traversal
-        filename = path.basename(filename);
-        const filePath = path.join(gamesDir, filename);
-        fs.unlink(filePath, (err) => {
+        
+        // sanitize folder name
+        folderName = path.basename(folderName);
+        const gameFolderPath = path.join(gamesDir, folderName);
+        
+        fs.rm(gameFolderPath, { recursive: true, force: true }, (err) => {
             if (err) {
                 console.error('game delete error', err);
                 socket.emit('adminActionResponse', { success: false, message: 'Failed to delete game' });
             } else {
-                socket.emit('adminActionResponse', { success: true, message: `Game ${filename} deleted` });
-                io.emit('gameDeleted', { filename });
+                socket.emit('adminActionResponse', { success: true, message: `Game ${folderName} deleted` });
+                io.emit('gameDeleted', { folderName });
             }
         });
     });
 
-    // HTTP API for listing games
+    // HTTP API for listing games with metadata
     app.get('/api/games', (req, res) => {
         fs.readdir(gamesDir, (err, files) => {
             if (err) return res.status(500).json({ error: 'Unable to read games' });
-            const htmlFiles = files.filter(f => f.toLowerCase().endsWith('.html'));
-            res.json({ games: htmlFiles });
+            
+            const games = [];
+            let processed = 0;
+            
+            files.forEach(filename => {
+                const fullPath = path.join(gamesDir, filename);
+                fs.stat(fullPath, (statErr, stats) => {
+                    if (!statErr && stats.isDirectory()) {
+                        // It's a folder - find index.html or main html file
+                        fs.readdir(fullPath, (readErr, dirFiles) => {
+                            let indexFile = dirFiles?.find(f => f.toLowerCase() === 'index.html') ||
+                                           dirFiles?.find(f => f.toLowerCase().endsWith('.html'));
+                            
+                            if (indexFile) {
+                                const gameEntry = {
+                                    name: filename,
+                                    indexFile: indexFile,
+                                    icon: null,
+                                    folder: true
+                                };
+                                
+                                // Look for icon files
+                                const iconFiles = ['favicon.ico', 'icon.png', 'icon.jpg', 'logo.png', 'logo.jpg'];
+                                for (let iconName of iconFiles) {
+                                    if (dirFiles?.includes(iconName)) {
+                                        gameEntry.icon = `/games/${encodeURIComponent(filename)}/${iconName}`;
+                                        break;
+                                    }
+                                }
+                                
+                                games.push(gameEntry);
+                            }
+                            
+                            processed++;
+                            if (processed === files.length) {
+                                res.json({ games });
+                            }
+                        });
+                    } else {
+                        processed++;
+                        if (processed === files.length) {
+                            res.json({ games });
+                        }
+                    }
+                });
+            });
+            
+            if (files.length === 0) res.json({ games: [] });
         });
     });
 

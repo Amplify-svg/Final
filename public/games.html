@@ -11,18 +11,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-top: 20px; }
-        .game-card { background: rgba(0,230,118,0.05); border: 1px solid rgba(0,230,118,0.2); border-radius: 12px; overflow: hidden; transition: all 0.3s; cursor: pointer; }
+        .game-card { background: rgba(0,230,118,0.05); border: 1px solid rgba(0,230,118,0.2); border-radius: 12px; overflow: hidden; transition: all 0.3s; cursor: pointer; display: flex; flex-direction: column; }
         .game-card:hover { border-color: var(--primary); box-shadow: 0 0 20px rgba(0,230,118,0.2); transform: translateY(-2px); }
         .game-card-header { padding: 15px; background: rgba(0,230,118,0.1); border-bottom: 1px solid rgba(0,230,118,0.2); display: flex; justify-content: space-between; align-items: center; }
         .game-card-title { color: var(--primary); font-weight: 600; margin: 0; flex: 1; word-break: break-word; display: flex; align-items: center; gap: 10px; }
-        .game-card-icon { width: 24px; height: 24px; object-fit: contain; }
-        .game-card-actions { display: flex; gap: 8px; }
+        .game-card-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
+        .game-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
         .game-card-btn { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 1rem; transition: all 0.2s; }
         .game-card-btn:hover { transform: scale(1.2); }
         .game-card-btn.pinned { color: #FFD700; }
-        .game-card-iframe { width: 100%; height: 400px; border: none; }
-        .game-card-footer { padding: 10px 15px; background: rgba(0,0,0,0.3); text-align: center; color: #aaa; font-size: 0.85rem; cursor: pointer; }
-        .game-card-footer:hover { color: var(--primary); }
+        .game-card-footer { padding: 15px; background: rgba(0,0,0,0.3); text-align: center; color: #aaa; font-size: 0.9rem; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; flex-grow: 1; align-self: stretch; }
+        .game-card-footer:hover { color: var(--primary); background: rgba(0,230,118,0.1); }
         .search-bar { width: 100%; padding: 12px 15px; background: rgba(0,230,118,0.05); border: 1px solid rgba(0,230,118,0.2); border-radius: 8px; color: #fff; font-size: 1rem; margin-bottom: 20px; }
         .search-bar::placeholder { color: rgba(255,255,255,0.5); }
         .search-bar:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 10px rgba(0,230,118,0.2); }
@@ -33,20 +32,52 @@
         .fullscreen-modal.active { display: flex; }
         .fullscreen-header { background: rgba(0,230,118,0.1); border-bottom: 1px solid rgba(0,230,118,0.2); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         .fullscreen-title { color: var(--primary); font-size: 1.2rem; font-weight: 600; margin: 0; }
-        .close-btn { background: #ff4757; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .close-btn { background: #ff4757; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
         .close-btn:hover { background: #ff3838; }
         .fullscreen-content { flex: 1; overflow: hidden; position: relative; }
         .fullscreen-iframe { width: 100%; height: 100%; border: none; }
         
-        .floating-chat { position: absolute; bottom: 20px; right: 20px; width: 300px; height: 400px; background: rgba(5,5,5,0.95); border: 1px solid rgba(0,230,118,0.3); border-radius: 12px; display: flex; flex-direction: column; resize: both; overflow: hidden; touch-action: none; z-index: 10000; }
-        .floating-chat-header { background: rgba(0,230,118,0.1); border-bottom: 1px solid rgba(0,230,118,0.2); padding: 12px; cursor: move; display: flex; justify-content: space-between; align-items: center; user-select: none; }
-        .floating-chat-title { color: var(--primary); font-weight: 600; font-size: 0.9rem; margin: 0; }
-        .floating-chat-close { background: none; border: none; color: #ff4757; cursor: pointer; font-size: 1.2rem; }
+        .floating-chat { 
+            position: fixed; 
+            bottom: 20px; 
+            right: 20px; 
+            width: 350px; 
+            height: 450px; 
+            background: rgba(5,5,5,0.98); 
+            border: 1px solid rgba(0,230,118,0.3); 
+            border-radius: 12px; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            z-index: 10000; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            resize: both;
+            touch-action: none;
+        }
+        .floating-chat.minimized { height: 45px; width: 200px; }
+        .floating-chat.minimized .floating-chat-messages,
+        .floating-chat.minimized .floating-chat-input { display: none; }
+        .floating-chat-header { 
+            background: rgba(0,230,118,0.1); 
+            border-bottom: 1px solid rgba(0,230,118,0.2); 
+            padding: 12px 15px; 
+            cursor: move; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            user-select: none; 
+            flex-shrink: 0;
+        }
+        .floating-chat-title { color: var(--primary); font-weight: 600; font-size: 0.95rem; margin: 0; }
+        .floating-chat-controls { display: flex; gap: 8px; align-items: center; }
+        .floating-chat-btn { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 1rem; transition: all 0.2s; opacity: 0.8; }
+        .floating-chat-btn:hover { opacity: 1; transform: scale(1.1); }
+        .floating-chat-close { color: #ff4757 !important; }
         .floating-chat-messages { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-        .chat-message { padding: 8px 10px; background: rgba(0,230,118,0.1); border-radius: 6px; color: #ccc; font-size: 0.85rem; border-left: 2px solid var(--primary); }
+        .chat-message { padding: 8px 10px; background: rgba(0,230,118,0.1); border-radius: 6px; color: #ccc; font-size: 0.85rem; border-left: 2px solid var(--primary); word-wrap: break-word; }
         .chat-message.system { border-left-color: #aaa; color: #aaa; background: rgba(100,100,100,0.1); }
-        .floating-chat-input { padding: 10px; border-top: 1px solid rgba(0,230,118,0.2); }
-        .floating-chat-input input { width: 100%; padding: 6px 8px; background: rgba(0,230,118,0.05); border: 1px solid rgba(0,230,118,0.2); border-radius: 4px; color: #fff; font-size: 0.9rem; }
+        .floating-chat-input { padding: 10px; border-top: 1px solid rgba(0,230,118,0.2); flex-shrink: 0; }
+        .floating-chat-input input { width: 100%; padding: 8px 10px; background: rgba(0,230,118,0.05); border: 1px solid rgba(0,230,118,0.2); border-radius: 4px; color: #fff; font-size: 0.9rem; box-sizing: border-box; }
         .floating-chat-input input::placeholder { color: rgba(255,255,255,0.4); }
         .floating-chat-input input:focus { outline: none; border-color: var(--primary); }
     </style>
@@ -75,7 +106,8 @@
             
             <div id="game-upload-zone" style="border: 2px dashed rgba(0,230,118,0.3); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 20px; transition: all 0.3s; display: none;">
                 <i class="fas fa-cloud-upload-alt" style="color: var(--primary); font-size: 1.5rem; margin-bottom: 8px;"></i>
-                <p style="color: #aaa; margin: 0;">Drag & drop HTML file here or click to select</p>
+                <p style="color: #aaa; margin: 0;">Drag & drop game folder here or click to select</p>
+                <small style="color: #666;">Supports folders with index.html and assets (images, icons, etc.)</small>
             </div>
             <input type="file" id="upload-game-file" accept=".html" style="display: none;">
             
@@ -108,8 +140,15 @@
             <iframe id="fullscreen-iframe" class="fullscreen-iframe"></iframe>
             <div id="floating-chat" class="floating-chat">
                 <div class="floating-chat-header">
-                    <h3 class="floating-chat-title">Chat</h3>
-                    <button class="floating-chat-close" onclick="closeFloatingChat()">✕</button>
+                    <h3 class="floating-chat-title"><i class="fas fa-comments"></i> Game Chat</h3>
+                    <div class="floating-chat-controls">
+                        <button class="floating-chat-btn" id="minimize-chat-btn" onclick="toggleMinimizeChat()" title="Minimize">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <button class="floating-chat-btn floating-chat-close" onclick="closeFloatingChat()" title="Close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
                 <div id="floating-chat-messages" class="floating-chat-messages"></div>
                 <div class="floating-chat-input">
@@ -125,25 +164,6 @@
         // Games page specific logic
         let allGames = [];
         let pinnedGames = JSON.parse(localStorage.getItem('pinnedGames') || '[]');
-        let gameIcons = JSON.parse(localStorage.getItem('gameIcons') || '{}');
-        
-        // Extract favicon from HTML content
-        function extractIcon(htmlContent) {
-            try {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlContent, 'text/html');
-                const icons = doc.querySelectorAll('link[rel*="icon"]');
-                for (let icon of icons) {
-                    const href = icon.getAttribute('href');
-                    if (href) {
-                        // Handle relative URLs
-                        if (href.startsWith('http')) return href;
-                        if (href.startsWith('data:')) return href;
-                    }
-                }
-            } catch (e) {}
-            return null;
-        }
         
         function renderGames() {
             const list = document.getElementById('games-list');
@@ -153,15 +173,16 @@
             const search = document.getElementById('search-games')?.value.toLowerCase() || '';
             
             // Filter games by search
-            const filteredGames = allGames.filter(name => name.toLowerCase().includes(search));
+            const filteredGames = allGames.filter(g => g.name.toLowerCase().includes(search));
             
             // Render pinned games
             if (pinnedGames.length > 0) {
                 pinnedContainer.style.display = 'block';
                 pinnedList.innerHTML = '';
                 pinnedGames.forEach(name => {
-                    if (allGames.includes(name)) {
-                        pinnedList.appendChild(createGameCard(name, true));
+                    const game = allGames.find(g => g.name === name);
+                    if (game) {
+                        pinnedList.appendChild(createGameCard(game, true));
                     }
                 });
             } else {
@@ -170,62 +191,45 @@
             
             // Render all games (excluding pinned)
             list.innerHTML = '';
-            const unpinnedGames = filteredGames.filter(g => !pinnedGames.includes(g));
+            const unpinnedGames = filteredGames.filter(g => !pinnedGames.includes(g.name));
             
             if (unpinnedGames.length === 0 && filteredGames.length === 0) {
                 noGamesMsg.style.display = 'block';
             } else {
                 noGamesMsg.style.display = 'none';
-                unpinnedGames.forEach(name => {
-                    list.appendChild(createGameCard(name, false));
+                unpinnedGames.forEach(game => {
+                    list.appendChild(createGameCard(game, false));
                 });
             }
         }
         
-        function createGameCard(name, isPinned) {
+        function createGameCard(game, isPinned) {
             const card = document.createElement('div');
             card.className = 'game-card';
             
-            const icon = gameIcons[name];
-            const iconHtml = icon ? `<img src="${icon}" class="game-card-icon" alt="${name}" onerror="this.style.display='none'">` : '';
+            const iconHtml = game.icon ? `<img src="${game.icon}" class="game-card-icon" alt="${game.name}" onerror="this.style.display='none'">` : '';
             
             card.innerHTML = `
                 <div class="game-card-header">
                     <h3 class="game-card-title">
                         ${iconHtml}
-                        <span>${name.replace('.html', '')}</span>
+                        <span>${game.name}</span>
                     </h3>
                     <div class="game-card-actions">
                         ${currentUser && currentUser.isAdmin ? `
-                            <button class="game-card-btn ${isPinned ? 'pinned' : ''}" onclick="event.stopPropagation(); togglePin('${name}')" title="${isPinned ? 'Unpin' : 'Pin'}">
+                            <button class="game-card-btn ${isPinned ? 'pinned' : ''}" onclick="event.stopPropagation(); togglePin('${game.name}')" title="${isPinned ? 'Unpin' : 'Pin'}">
                                 <i class="fas fa-thumbtack"></i>
                             </button>
-                            <button class="game-card-btn" onclick="event.stopPropagation(); deleteGame('${name}')" title="Delete" style="color: #ff4757;">
+                            <button class="game-card-btn" onclick="event.stopPropagation(); deleteGame('${game.name}')" title="Delete" style="color: #ff4757;">
                                 <i class="fas fa-trash"></i>
                             </button>
                         ` : ''}
                     </div>
                 </div>
-                <iframe class="game-card-iframe" src="/games/${encodeURIComponent(name)}" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
-                <div class="game-card-footer" onclick="openFullscreenGame('${name}')">
-                    <i class="fas fa-expand"></i> Play Fullscreen
+                <div class="game-card-footer" onclick="openFullscreenGame('${game.name}', '${game.indexFile}')">
+                    <i class="fas fa-play-circle"></i> Play Game
                 </div>
             `;
-            
-            // Load and cache game icon on first load
-            if (!gameIcons[name]) {
-                fetch('/games/' + encodeURIComponent(name))
-                    .then(r => r.text())
-                    .then(html => {
-                        const icon = extractIcon(html);
-                        if (icon) {
-                            gameIcons[name] = icon;
-                            localStorage.setItem('gameIcons', JSON.stringify(gameIcons));
-                            renderGames(); // Re-render to show icon
-                        }
-                    })
-                    .catch(e => console.log('Could not load game icon:', e));
-            }
             
             return card;
         }
@@ -242,7 +246,7 @@
         
         function deleteGame(name) {
             if (confirm('Delete game: ' + name + '?')) {
-                socket.emit('adminDeleteGame', { filename: name });
+                socket.emit('adminDeleteGame', { folderName: name });
             }
         }
         
@@ -250,7 +254,7 @@
             fetch('/api/games')
                 .then(r => r.json())
                 .then(data => {
-                    allGames = data.games;
+                    allGames = data.games || [];
                     renderGames();
                 })
                 .catch(e => {
@@ -260,17 +264,23 @@
         }
         
         // Fullscreen game viewer
-        function openFullscreenGame(name) {
+        function openFullscreenGame(folderName, indexFile) {
             const modal = document.getElementById('fullscreen-modal');
             const iframe = document.getElementById('fullscreen-iframe');
             const title = document.getElementById('fullscreen-title');
             
-            title.textContent = name.replace('.html', '');
-            iframe.src = '/games/' + encodeURIComponent(name);
+            title.textContent = folderName;
+            const gameUrl = `/games/${encodeURIComponent(folderName)}/${encodeURIComponent(indexFile)}`;
+            iframe.src = gameUrl;
             modal.classList.add('active');
             
+            // Reset chat and show it
+            document.getElementById('floating-chat').classList.remove('minimized');
+            document.getElementById('floating-chat').style.display = 'flex';
+            document.getElementById('floating-chat-messages').innerHTML = '';
+            
             // Add system message to chat
-            addChatMessage(`Game "${name.replace('.html', '')}" started`, 'system');
+            addChatMessage(`Game "${folderName}" started`, 'system');
         }
         
         function closeFullscreenGame() {
@@ -279,6 +289,20 @@
             modal.classList.remove('active');
             iframe.src = '';
             document.getElementById('floating-chat-messages').innerHTML = '';
+            document.getElementById('floating-chat').style.display = 'none';
+        }
+        
+        function toggleMinimizeChat() {
+            const chat = document.getElementById('floating-chat');
+            chat.classList.toggle('minimized');
+            const btn = document.getElementById('minimize-chat-btn');
+            if (chat.classList.contains('minimized')) {
+                btn.innerHTML = '<i class="fas fa-plus"></i>';
+                btn.title = 'Maximize';
+            } else {
+                btn.innerHTML = '<i class="fas fa-minus"></i>';
+                btn.title = 'Minimize';
+            }
         }
         
         // Floating chat functionality
@@ -286,6 +310,8 @@
         
         function addChatMessage(text, type = 'user', username = null) {
             const messagesContainer = document.getElementById('floating-chat-messages');
+            if (!messagesContainer) return;
+            
             const msg = document.createElement('div');
             msg.className = `chat-message ${type === 'system' ? 'system' : ''}`;
             
@@ -316,16 +342,43 @@
             document.getElementById('floating-chat').style.display = 'none';
         }
         
-        // Make floating chat resizable and draggable
+        // Enhanced draggable and resizable floating chat
         const floatingChat = document.getElementById('floating-chat');
+        const header = document.querySelector('.floating-chat-header');
+        
         let isDragging = false;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
+        let isResizing = false;
+        let resizeStartX = 0;
+        let resizeStartY = 0;
+        let resizeStartWidth = 0;
+        let resizeStartHeight = 0;
         
-        document.querySelector('.floating-chat-header').addEventListener('mousedown', (e) => {
+        // Dragging
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.floating-chat-controls')) return;
             isDragging = true;
             dragOffsetX = e.clientX - floatingChat.offsetLeft;
             dragOffsetY = e.clientY - floatingChat.offsetTop;
+            floatingChat.style.cursor = 'grabbing';
+        });
+        
+        // Resizing (right-bottom corner)
+        floatingChat.addEventListener('mousedown', (e) => {
+            if (header.contains(e.target)) return;
+            const rect = floatingChat.getBoundingClientRect();
+            const isNearEdge = 
+                (e.clientX >= rect.right - 15 && e.clientY >= rect.bottom - 15);
+            if (isNearEdge && !floatingChat.classList.contains('minimized')) {
+                isResizing = true;
+                resizeStartX = e.clientX;
+                resizeStartY = e.clientY;
+                resizeStartWidth = rect.width;
+                resizeStartHeight = rect.height;
+                floatingChat.style.cursor = 'nwse-resize';
+                e.preventDefault();
+            }
         });
         
         document.addEventListener('mousemove', (e) => {
@@ -335,10 +388,32 @@
                 floatingChat.style.right = 'auto';
                 floatingChat.style.bottom = 'auto';
             }
+            if (isResizing) {
+                const deltaX = e.clientX - resizeStartX;
+                const deltaY = e.clientY - resizeStartY;
+                const newWidth = Math.max(200, resizeStartWidth + deltaX);
+                const newHeight = Math.max(150, resizeStartHeight + deltaY);
+                floatingChat.style.width = newWidth + 'px';
+                floatingChat.style.height = newHeight + 'px';
+            }
+            
+            // Show resize cursor at edges
+            if (floatingChat.classList.contains('active') || document.getElementById('fullscreen-modal').classList.contains('active')) {
+                const rect = floatingChat.getBoundingClientRect();
+                const isNearEdge = 
+                    (e.clientX >= rect.right - 15 && e.clientY >= rect.bottom - 15);
+                if (isNearEdge && !floatingChat.classList.contains('minimized')) {
+                    floatingChat.style.cursor = 'nwse-resize';
+                } else if (!isDragging) {
+                    floatingChat.style.cursor = 'default';
+                }
+            }
         });
         
         document.addEventListener('mouseup', () => {
             isDragging = false;
+            isResizing = false;
+            floatingChat.style.cursor = 'default';
         });
         
         // Listen for incoming messages
@@ -361,6 +436,10 @@
         const fileInput = document.getElementById('upload-game-file');
         if (zone && fileInput) {
             zone.onclick = () => fileInput.click();
+            
+            // Change to accept folders
+            fileInput.setAttribute('webkitdirectory', '');
+            fileInput.setAttribute('multiple', '');
             
             // Drag and drop
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
@@ -385,14 +464,78 @@
             });
             
             zone.addEventListener('drop', (e) => {
-                const file = e.dataTransfer.files[0];
-                if (file && file.name.toLowerCase().endsWith('.html')) {
-                    fileInput.files = e.dataTransfer.files;
-                    document.getElementById('upload-game-btn')?.click?.();
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) {
+                    fileInput.files = files;
+                    processGameUpload();
                 } else {
-                    showNotification('Please drop an HTML file', 'error');
+                    showNotification('Please drop a game folder', 'error');
                 }
             });
+        }
+        
+        // Process folder upload
+        function processGameUpload() {
+            const fileInput = document.getElementById('upload-game-file');
+            const files = Array.from(fileInput.files);
+            
+            if (files.length === 0) {
+                showNotification('No files selected', 'error');
+                return;
+            }
+            
+            // Get base folder name from first file
+            let folderName = files[0].webkitRelativePath?.split('/')[0];
+            if (!folderName) {
+                folderName = files[0].name.split('.')[0];
+                if (folderName.length > 50) folderName = folderName.substring(0, 50);
+            }
+            
+            // Build file structure object
+            const filesObj = {};
+            files.forEach(file => {
+                const path = file.webkitRelativePath || file.name;
+                const relativePath = path.split('/').slice(1).join('/');
+                
+                // Don't include hidden files
+                if (!path.includes('/.')) {
+                    filesObj[relativePath] = file;
+                }
+            });
+            
+            // Read files as base64
+            let processed = 0;
+            const fileContents = {};
+            
+            Object.entries(filesObj).forEach(([path, file]) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    fileContents[path] = e.target.result;
+                    processed++;
+                    
+                    if (processed === Object.keys(filesObj).length) {
+                        // All files read, upload
+                        socket.emit('adminUploadGame', {
+                            folderName: folderName,
+                            files: fileContents
+                        });
+                        showNotification('Uploading game...', 'info');
+                        fileInput.value = '';
+                    }
+                };
+                
+                reader.readAsArrayBuffer(file);
+            });
+        }
+        
+        // Setup upload button
+        const uploadBtn = document.getElementById('upload-game-btn');
+        if (uploadBtn) {
+            uploadBtn.onclick = (e) => {
+                e.preventDefault();
+                fileInput.click();
+            };
+            fileInput.addEventListener('change', processGameUpload);
         }
         
         // Search functionality
