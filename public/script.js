@@ -21,27 +21,51 @@ let userSettings = {
     cloakTitle: localStorage.getItem('cloakTitle') || '',
     cloakIcon: localStorage.getItem('cloakIcon') || ''
 };
+// include panic shortcut in settings
+userSettings.panicShortcut = localStorage.getItem('panicShortcut') || 'Ctrl+Shift+P,Escape';
+
+// Audio context helpers for cross-device notification sounds
+let audioContext = null;
+let audioUnlocked = false;
+function initAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+function unlockAudioOnUserGesture() {
+    if (audioUnlocked) return;
+    initAudioContext();
+    if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => { audioUnlocked = true; }).catch(() => {});
+    } else {
+        audioUnlocked = true;
+    }
+}
+// try to unlock on first user interaction
+['click', 'touchstart', 'keydown'].forEach(ev => {
+    document.addEventListener(ev, unlockAudioOnUserGesture, { once: true, passive: true });
+});
 
 // Play notification sound
 function playNotificationSound() {
     if (!userSettings.soundEnabled) return;
     
     try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        initAudioContext();
+        // If context is suspended (mobile browsers) try to resume first
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().catch(() => {});
+        }
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
-        
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
-        
         oscillator.frequency.value = 800;
         oscillator.type = 'sine';
-        
         gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-        
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.45);
         oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
+        oscillator.stop(audioContext.currentTime + 0.45);
     } catch(e) {
         console.log('Could not play sound:', e);
     }
@@ -207,14 +231,13 @@ socket.on('adminActionResponse', (data) => {
 document.addEventListener('keydown', function handlePanicKey(e) {
     // Skip if user is typing in an input field
     const active = document.activeElement;
-    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) {
         return;
     }
-    
-    // Check for Ctrl+Shift+P
-    if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
-        e.preventDefault();
-        e.stopPropagation();
+
+    const shortcut = userSettings.panicShortcut || 'Ctrl+Shift+P,Escape';
+    if (eventMatchesShortcut(e, shortcut)) {
+        try { e.preventDefault(); e.stopPropagation(); } catch(_) {}
         console.log('Panic key activated');
         panicButtonAction();
     }

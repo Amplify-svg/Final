@@ -456,6 +456,12 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
     flex-direction: column;
     border-radius: 16px;
 }
+    /* Ensure the inner users list scrolls smoothly on touch devices and doesn't stretch the layout */
+    .chat-sidebar > div[style*="flex: 1"] {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+.floating-chat-messages { -webkit-overflow-scrolling: touch; }
 .sidebar-header { 
     margin-bottom: 20px; 
     padding-bottom: 20px; 
@@ -479,6 +485,8 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
     padding-right: 10px;
     overflow-y: auto;
 }
+
+#messages { -webkit-overflow-scrolling: touch; }
 
 /* --- BUBBLE STYLES --- */
 .message-wrapper {
@@ -937,3 +945,11 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
         padding: 20px;
     }
 }
+
+    /* Admin modal: make sure it fits the screen and can scroll when content is tall */
+    #admin-modal {
+        width: 95%;
+        max-width: 900px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }

@@ -264,15 +264,19 @@
         }
         
         // Fullscreen game viewer
+        let _gamesSavedScrollY = 0;
         function openFullscreenGame(folderName, indexFile) {
             const modal = document.getElementById('fullscreen-modal');
             const iframe = document.getElementById('fullscreen-iframe');
             const title = document.getElementById('fullscreen-title');
-            
+            // save current scroll so we can restore after closing
+            _gamesSavedScrollY = window.scrollY || window.pageYOffset || 0;
             title.textContent = folderName;
             const gameUrl = `/games/${encodeURIComponent(folderName)}/${encodeURIComponent(indexFile)}`;
             iframe.src = gameUrl;
             modal.classList.add('active');
+            // prevent body scrolling while in fullscreen
+            document.body.style.overflow = 'hidden';
             
             // Reset chat and show it
             document.getElementById('floating-chat').classList.remove('minimized');
@@ -290,6 +294,9 @@
             iframe.src = '';
             document.getElementById('floating-chat-messages').innerHTML = '';
             document.getElementById('floating-chat').style.display = 'none';
+            // restore body scrolling and previous scroll position
+            document.body.style.overflow = '';
+            try { window.scrollTo({ top: _gamesSavedScrollY, behavior: 'auto' }); } catch(e) { window.scrollTo(0, _gamesSavedScrollY); }
         }
         
         function toggleMinimizeChat() {
@@ -507,24 +514,42 @@
             let processed = 0;
             const fileContents = {};
             
+            // detect possible icon files
+            const iconNames = ['icon.png','icon.jpg','thumbnail.png','thumbnail.jpg','favicon.ico','favicon.png'];
+            let detectedIconDataUrl = null;
+
             Object.entries(filesObj).forEach(([path, file]) => {
                 const reader = new FileReader();
+                const lower = path.toLowerCase();
+                const isIcon = iconNames.some(n => lower.endsWith('/' + n) || lower === n);
+
                 reader.onload = (e) => {
                     fileContents[path] = e.target.result;
+                    if (isIcon && !detectedIconDataUrl) {
+                        detectedIconDataUrl = e.target.result;
+                    }
+
                     processed++;
-                    
+
                     if (processed === Object.keys(filesObj).length) {
                         // All files read, upload
-                        socket.emit('adminUploadGame', {
+                        const payload = {
                             folderName: folderName,
                             files: fileContents
-                        });
+                        };
+                        if (detectedIconDataUrl) payload.icon = detectedIconDataUrl;
+                        socket.emit('adminUploadGame', payload);
                         showNotification('Uploading game...', 'info');
                         fileInput.value = '';
                     }
                 };
-                
-                reader.readAsArrayBuffer(file);
+
+                // Read icons as data URL to capture preview; other files as ArrayBuffer
+                if (isIcon) {
+                    reader.readAsDataURL(file);
+                } else {
+                    reader.readAsArrayBuffer(file);
+                }
             });
         }
         
