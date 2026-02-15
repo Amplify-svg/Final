@@ -153,10 +153,9 @@ io.on('connection', (socket) => {
                             
                             if (written + errors === fileCount) {
                                 io.emit('newGameUploaded', { folderName });
-                                socket.emit('adminActionResponse', { 
-                                    success: true, 
-                                    message: `Game "${folderName}" uploaded successfully` 
-`},{},
+                                socket.emit('adminActionResponse', {
+                                    success: errors === 0,
+                                    message: errors === 0 ? `Game "${folderName}" uploaded successfully (${written}/${fileCount} files)` : `Uploaded with ${errors} errors (${written}/${fileCount} files)`
                                 });
                             }
                         });

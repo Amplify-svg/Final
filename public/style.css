@@ -228,6 +228,20 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
     overflow-y: auto;
     overflow-x: hidden;
 }
+
+/* Make chat page use full available width */
+body#page-chat .app-container {
+    max-width: 100%;
+    padding: 20px 30px;
+}
+
+/* On very wide screens, let chat layout expand more */
+@media (min-width: 1200px) {
+    body#page-chat .chat-layout { gap: 28px; }
+    body#page-chat .chat-sidebar { width: 300px; }
+    body#page-chat .chat-main { padding: 20px; }
+    body#page-chat .app-container { padding-left: 40px; padding-right: 40px; }
+}
 .dashboard-header { 
     display: flex; 
     justify-content: space-between; 
@@ -448,7 +462,7 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
 /* =========================================
    4. PAGE: CHAT ROOM (FIXED & COMPLETE)
    ========================================= */
-.chat-layout { display: flex; gap: 20px; height: 100%; }
+.chat-layout { display: flex; gap: 20px; flex: 1; min-height: 0; }
 .chat-sidebar { 
     width: 280px; 
     padding: 20px; 
@@ -468,17 +482,20 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
     border-bottom: 1px solid rgba(255,255,255,0.1); 
 }
 
-.chat-main { 
-    flex: 1; 
-    display: flex; 
-    flex-direction: column; 
-    padding: 20px; 
-    position: relative; 
-    overflow-y: auto;
+# Ensure the main chat panel fills remaining vertical space and allows inner scrolling
+.chat-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    position: relative;
     border-radius: 16px;
 }
+# Messages area should grow and scroll inside the chat main
 #messages {
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -770,8 +787,8 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
     transform: translate(-50%, -50%);
     z-index: 1001;
     width: 90%;
-    max-width: 450px;
-    padding: 30px;
+    max-width: 540px;
+    padding: 20px;
     text-align: center;
     animation: scaleIn 0.3s ease;
 }
@@ -781,6 +798,24 @@ input::placeholder { color: rgba(255, 255, 255, 0.3); }
 .centered-panel h2 { margin-top: 0; margin-bottom: 10px; font-size: 1.5rem; }
 
 .centered-panel input { margin-bottom: 15px; }
+
+/* Make centered modals constrained to viewport and scrollable when tall */
+.centered-panel {
+    max-height: 85vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+}
+
+/* Specific tweaks for settings and admin modals to avoid covering full layout */
+#settings-modal, #admin-modal, #user-messages-modal {
+    width: 95%;
+    max-width: 720px;
+    padding: 18px;
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 10010;
+}
 
 /* --- PARTICLES: keep canvas as a fixed background so it doesn't push content down --- */
 #particleCanvas {

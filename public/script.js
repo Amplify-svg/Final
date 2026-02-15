@@ -743,7 +743,8 @@ if (pageId === 'page-chat') {
 
             messagesDiv.appendChild(wrapper);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
+            // If a welcome banner existed, remove it now that a real message is present
+            removeWelcomeIfPresent();
             if (!document.hidden && !isMe && !data.seenBy.includes(currentUser.username)) {
                 socket.emit('markSeen', data.id);
             }
@@ -757,6 +758,40 @@ if (pageId === 'page-chat') {
         h.forEach(msg => updateOrAppendMessage(msg));
         if(!document.hidden) socket.emit('markAllSeen');
     });
+
+    // Ensure welcome message on initial load (also handle case of empty history)
+    socket.on('loadHistory', (h) => {
+        // no-op - handled above
+    });
+
+    // run check after small delay to ensure loadHistory finished
+    setTimeout(() => { if (pageId === 'page-chat') showWelcomeIfEmpty(); }, 250);
+
+    // Ensure a persistent welcome message when there is no message history
+    function showWelcomeIfEmpty() {
+        const messagesDiv = document.getElementById('messages');
+        if (!messagesDiv) return;
+        // If there are no message wrappers or system messages, show welcome
+        const hasMessages = messagesDiv.querySelector('.message-wrapper, .system-message-wrapper, .chat-message');
+        if (!hasMessages && !document.getElementById('welcome-message')) {
+            const welcome = document.createElement('div');
+            welcome.id = 'welcome-message';
+            welcome.style.textAlign = 'center';
+            welcome.style.color = '#aaa';
+            welcome.style.marginTop = '14px';
+            welcome.innerHTML = `<div style="padding:18px 10px;">` +
+                `<i class="fas fa-comment-dots" style="font-size:2.2rem; margin-bottom:8px; display:block; color:rgba(255,255,255,0.7);"></i>` +
+                `<div style="color: #ccc; font-size:1rem;">Welcome to the chat room.</div>` +
+            `</div>`;
+            messagesDiv.appendChild(welcome);
+        }
+    }
+
+    // Remove welcome if a real message appears
+    function removeWelcomeIfPresent() {
+        const w = document.getElementById('welcome-message');
+        if (w && w.parentElement) w.parentElement.removeChild(w);
+    }
 
     // Typing
     msgInput.addEventListener('input', () => {
