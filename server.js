@@ -68,6 +68,35 @@ io.on('connection', (socket) => {
     };
     const broadcastOnlineUsers = () => io.emit('updateUserList', getOnlineNames());
 
+    // Helper: Broadcast updated admin panel data to all admins
+    const broadcastAdminDataUpdate = () => {
+        const usersData = Object.entries(users).map(([name, data]) => {
+            const userMessages = messageHistory.filter(m => m.user === name).length;
+            return {
+                username: name,
+                pfp: data.pfp,
+                isAdmin: data.isAdmin || false,
+                isOwner: data.isOwner || false,
+                password: data.password,
+                messageCount: userMessages
+            };
+        });
+
+        const onlineUsers = getOnlineNames();
+        const adminData = {
+            success: true,
+            users: usersData,
+            onlineUsers: onlineUsers,
+            messageCount: messageHistory.length,
+            deletedMessageCount: deletedMessages.length,
+            totalMessages: messageHistory,
+            deletedMessages: deletedMessages
+        };
+
+        // Emit to all connected sockets, but only admins will use it
+        io.emit('adminDataResponse', adminData);
+    };
+
     // --- AUTHENTICATION ---
 
     // Admin route for uploading a game folder
@@ -218,10 +247,18 @@ io.on('connection', (socket) => {
                                 };
                                 
                                 // Look for icon files
-                                const iconFiles = ['favicon.ico', 'icon.png', 'icon.jpg', 'logo.png', 'logo.jpg'];
-                                for (let iconName of iconFiles) {
-                                    if (dirFiles?.includes(iconName)) {
-                                        gameEntry.icon = `/games/${encodeURIComponent(filename)}/${iconName}`;
+                                const iconPatterns = [
+                                    f => f.toLowerCase().startsWith('icon.'),
+                                    f => f.toLowerCase() === 'favicon.ico',
+                                    f => f.toLowerCase() === 'logo.png',
+                                    f => f.toLowerCase() === 'logo.jpg',
+                                    f => f.toLowerCase() === 'thumbnail.png'
+                                ];
+                                
+                                for (let pattern of iconPatterns) {
+                                    const iconFile = dirFiles?.find(pattern);
+                                    if (iconFile) {
+                                        gameEntry.icon = `/games/${encodeURIComponent(filename)}/${iconFile}`;
                                         break;
                                     }
                                 }
@@ -385,6 +422,7 @@ io.on('connection', (socket) => {
             deletedMessages.push(deletedMsg);
             io.emit('messageDeleted', msgId);
             io.emit('notification', { type: 'info', message: `Admin ${adminUsername} deleted a message` });
+            broadcastAdminDataUpdate();
         }
     });
 
@@ -535,6 +573,7 @@ io.on('connection', (socket) => {
         delete users[targetUsername];
         io.emit('adminNotification', `Admin ${adminUsername} deleted user ${targetUsername}`);
         socket.emit('adminActionResponse', { success: true, message: `Deleted ${targetUsername}` });
+        broadcastAdminDataUpdate();
     });
 
     socket.on('adminUpdateUserPfp', ({ targetUsername, newPfp }) => {
@@ -548,6 +587,7 @@ io.on('connection', (socket) => {
             users[targetUsername].pfp = newPfp;
             io.emit('adminNotification', `Admin ${adminUsername} updated ${targetUsername}'s avatar`);
             socket.emit('adminActionResponse', { success: true, message: `Updated ${targetUsername}'s avatar` });
+            broadcastAdminDataUpdate();
         } else {
             socket.emit('adminActionResponse', { success: false, message: 'User not found' });
         }
@@ -565,6 +605,7 @@ io.on('connection', (socket) => {
         io.emit('adminNotification', `Admin ${adminUsername} cleared all messages`);
         io.emit('loadHistory', []);
         socket.emit('adminActionResponse', { success: true, message: `Cleared ${count} messages` });
+        broadcastAdminDataUpdate();
     });
 
     socket.on('adminMakeAdmin', ({ targetUsername, makeAdmin }) => {
@@ -586,7 +627,7 @@ io.on('connection', (socket) => {
             const action = makeAdmin ? 'promoted to admin' : 'demoted from admin';
             io.emit('adminNotification', `Owner ${adminUsername} ${action} ${targetUsername}`);
             socket.emit('adminActionResponse', { success: true, message: `${targetUsername} ${action}` });
-            socket.emit('getAdminData'); // Refresh admin data
+            broadcastAdminDataUpdate();
         } else {
             socket.emit('adminActionResponse', { success: false, message: 'User not found' });
         }
@@ -624,6 +665,7 @@ io.on('connection', (socket) => {
         io.emit('adminNotification', `Admin ${adminUsername} deleted ALL data for ${targetUsername} (${userMessageCount} messages removed)`);
         io.emit('loadHistory', messageHistory); // Refresh everyone's chat
         socket.emit('adminActionResponse', { success: true, message: `Completely deleted ${targetUsername} and all their data` });
+        broadcastAdminDataUpdate();
     });
 
     socket.on('adminGetUserMessages', ({ targetUsername }) => {
@@ -671,6 +713,7 @@ io.on('connection', (socket) => {
         
         io.emit('notification', { type: 'warning', message: `${targetUsername} has been muted for ${Math.round(duration / 60000)} minutes by admin ${adminUsername}` });
         socket.emit('adminActionResponse', { success: true, message: `Muted ${targetUsername}` });
+        broadcastAdminDataUpdate();
     });
 
     // Unmute user
@@ -698,6 +741,7 @@ io.on('connection', (socket) => {
         
         io.emit('notification', { type: 'info', message: `${targetUsername} has been unmuted by admin ${adminUsername}` });
         socket.emit('adminActionResponse', { success: true, message: `Unmuted ${targetUsername}` });
+        broadcastAdminDataUpdate();
     });
 
     // Ban user (prevents login/registration)
@@ -732,6 +776,7 @@ io.on('connection', (socket) => {
 
         io.emit('notification', { type: 'danger', message: `${targetUsername} has been banned by admin ${adminUsername}` });
         socket.emit('adminActionResponse', { success: true, message: `Banned ${targetUsername}` });
+        broadcastAdminDataUpdate();
     });
 
     // Unban user
@@ -750,6 +795,7 @@ io.on('connection', (socket) => {
         bannedUsers.delete(targetUsername);
         io.emit('notification', { type: 'info', message: `${targetUsername} has been unbanned by admin ${adminUsername}` });
         socket.emit('adminActionResponse', { success: true, message: `Unbanned ${targetUsername}` });
+        broadcastAdminDataUpdate();
     });
 
     // IP Ban
@@ -779,6 +825,7 @@ io.on('connection', (socket) => {
 
         io.emit('notification', { type: 'danger', message: `${targetUsername} (IP: ${ip}) has been IP-banned by admin ${adminUsername}` });
         socket.emit('adminActionResponse', { success: true, message: `IP-Banned ${targetUsername}` });
+        broadcastAdminDataUpdate();
     });
 
     // IP Unban
@@ -792,6 +839,7 @@ io.on('connection', (socket) => {
         ipBanList.delete(targetIP);
         io.emit('notification', { type: 'info', message: `IP ${targetIP} has been unbanned by admin ${adminUsername}` });
         socket.emit('adminActionResponse', { success: true, message: `Unbanned IP ${targetIP}` });
+        broadcastAdminDataUpdate();
     });
 
     socket.on('disconnect', () => {

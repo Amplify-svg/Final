@@ -28,16 +28,19 @@
 
         <div class="glass-panel call-overlay">
             <button id="admin-panel-btn" onclick="toggleAdminPanel()" class="nav-btn" style="display: none;">
-                <i class="fas fa-shield-alt"></i> Admin Panel
+                <i class="fas fa-shield-alt"></i> Admin
             </button>
             <button onclick="toggleSettings()" class="nav-btn">
                 <i class="fas fa-cog"></i> Settings
+            </button>
+            <button onclick="window.location.href='chat.html'" class="nav-btn">
+                <i class="fas fa-comments"></i> Chat
             </button>
             <button onclick="window.location.href='games.html'" class="nav-btn">
                 <i class="fas fa-gamepad"></i> Games
             </button>
             <button onclick="window.location.href='index.html'" class="nav-btn">
-                <i class="fas fa-arrow-left"></i> Back to Hub
+                <i class="fas fa-home"></i> Home
             </button>
             <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 15px 0;"></div>
             <h3 style="margin: 0 0 10px 10px; font-size: 0.8rem; color: var(--primary); letter-spacing: 1px;">AVAILABLE USERS</h3>
@@ -107,13 +110,8 @@
         <ul id="admin-deleted-messages-list" style="list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto; background: rgba(255,71,87,0.08); padding: 10px; border-radius: 10px; margin-bottom: 15px; color: #ccc; font-size: 0.9rem; border: 1px solid rgba(255,71,87,0.2);">
         </ul>
 
-        <div style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
-            <h3 style="color:#fff; font-size:0.95rem;">Upload Game HTML</h3>
-            <input type="text" id="upload-game-filename" placeholder="filename.html" style="width:100%; margin-bottom:8px;">
-            <textarea id="upload-game-content" placeholder="Paste HTML here" style="width:100%; height:120px;"></textarea>
-            <button id="upload-game-btn" class="btn-glow" style="margin-top:8px; width:100%;">Upload</button>
-        </div>
         <div style="display: flex; gap: 10px; margin-top:20px;">
+            <button onclick="window.location.href='games.html'" class="btn-glow" style="flex: 1;"><i class="fas fa-plus"></i> Add Games</button>
             <button onclick="clearAllMessages()" class="btn-danger" style="flex: 1;">Clear All Messages</button>
             <button onclick="toggleAdminPanel()" class="btn-outline" style="flex: 1; border: 1px solid #555;">Close</button>
         </div>

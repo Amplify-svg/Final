@@ -235,6 +235,87 @@ body#page-chat .app-container {
     padding: 20px 30px;
 }
 
+/* Strong overrides to ensure chat takes full viewport width on chat page */
+body#page-chat .app-container {
+    width: 100vw !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding-left: 28px !important;
+    padding-right: 28px !important;
+}
+
+body#page-chat .chat-layout {
+    width: 100% !important;
+    max-width: none !important;
+    gap: 28px !important;
+}
+
+body#page-chat .chat-sidebar {
+    width: 320px !important;
+    flex: 0 0 320px !important;
+}
+
+body#page-chat .chat-main {
+    flex: 1 1 auto !important;
+    min-width: 640px !important;
+}
+
+/* Ensure the glass panel in main stretches full height inside layout */
+body#page-chat .chat-main.glass-panel {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Prevent the entire page from scrolling on the chat page; only the messages area should scroll */
+body#page-chat {
+    height: 100vh !important;
+    overflow: hidden !important;
+}
+
+body#page-chat .app-container {
+    height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+body#page-chat .dashboard-header {
+    flex: 0 0 auto;
+}
+
+body#page-chat .chat-layout {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+body#page-chat .chat-main {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Messages area scrolls internally */
+#messages {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 12px !important;
+}
+
+/* Keep input/form anchored at bottom */
+#chat-form {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    gap: 10px !important;
+    position: relative !important;
+}
+
+/* ensure messages area doesn't get hidden behind fixed elements */
+.chat-main { padding-bottom: 12px; }
+
 /* On very wide screens, let chat layout expand more */
 @media (min-width: 1200px) {
     body#page-chat .chat-layout { gap: 28px; }

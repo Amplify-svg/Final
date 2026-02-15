@@ -90,6 +90,18 @@
                 <i class="fas fa-gamepad" style="color: var(--primary);"></i> Games
             </div>
             <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="admin-panel-btn" onclick="toggleAdminPanel()" class="btn-outline" style="display: none; min-width: 100px; font-size: 0.8rem; padding: 8px 12px;">
+                    <i class="fas fa-shield-alt"></i> Admin
+                </button>
+                <button onclick="toggleSettings()" class="btn-outline" style="min-width: 100px; font-size: 0.8rem; padding: 8px 12px;">
+                    <i class="fas fa-cog"></i> Settings
+                </button>
+                <button onclick="window.location.href='chat.html'" class="btn-outline" style="min-width: 100px; font-size: 0.8rem; padding: 8px 12px;">
+                    <i class="fas fa-comments"></i> Chat
+                </button>
+                <button onclick="window.location.href='call.html'" class="btn-outline" style="min-width: 100px; font-size: 0.8rem; padding: 8px 12px;">
+                    <i class="fas fa-video"></i> Calls
+                </button>
                 <button onclick="window.location.href='index.html'" class="btn-danger" style="min-width: 120px; font-size: 0.95rem;">
                     <i class="fas fa-home"></i> Home
                 </button>
@@ -99,17 +111,15 @@
         <main class="glass-panel" style="padding: 20px; min-height: 60vh;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="color: var(--primary); margin: 0;">Game Library</h2>
-                <button id="upload-game-btn" class="btn-glow" onclick="document.getElementById('upload-game-file').click();" style="display: none;">
-                    <i class="fas fa-upload"></i> Upload Game
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="document.getElementById('games-list')?.scrollIntoView(); location.reload();" class="btn-outline" style="border: 1px solid var(--secondary); color: var(--secondary);">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                    <button id="upload-game-btn" class="btn-glow" onclick="document.getElementById('add-game-modal').classList.remove('hidden');" style="display: none;">
+                        <i class="fas fa-plus"></i> Add Game
+                    </button>
+                </div>
             </div>
-            
-            <div id="game-upload-zone" style="border: 2px dashed rgba(0,230,118,0.3); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 20px; transition: all 0.3s; display: none;">
-                <i class="fas fa-cloud-upload-alt" style="color: var(--primary); font-size: 1.5rem; margin-bottom: 8px;"></i>
-                <p style="color: #aaa; margin: 0;">Drag & drop game folder here or click to select</p>
-                <small style="color: #666;">Supports folders with index.html and assets (images, icons, etc.)</small>
-            </div>
-            <input type="file" id="upload-game-file" accept=".html" style="display: none;">
             
             <input type="text" id="search-games" placeholder="🔍 Search games..." class="search-bar">
             
@@ -128,6 +138,39 @@
                 <p>No games found. Upload one to get started!</p>
             </div>
         </main>
+    </div>
+
+    <!-- Add Game Modal -->
+    <div id="add-game-modal" class="hidden glass-panel centered-panel" style="max-width: 450px;">
+        <h2 style="color: var(--primary); margin-top: 0;">Add Game</h2>
+        <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 25px;">Upload a game with an icon image.</p>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; color: #ccc; margin-bottom: 8px; font-weight: 500;">Game Name:</label>
+            <input type="text" id="game-name-input" placeholder="e.g., My Game" style="width: 100%; box-sizing: border-box; padding: 10px; background: rgba(0,230,118,0.05); border: 1px solid rgba(0,230,118,0.2); border-radius: 6px; color: #fff; font-size: 0.95rem;">
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; color: #ccc; margin-bottom: 8px; font-weight: 500;">Game File (.html):</label>
+            <input type="file" id="game-file-input" accept=".html" style="display: none;">
+            <button onclick="document.getElementById('game-file-input').click();" class="btn-outline" style="width: 100%; border: 1px solid rgba(0,230,118,0.5); padding: 12px; text-align: left; background: rgba(0,0,0,0.2);">
+                <i class="fas fa-file-code" style="margin-right: 8px;"></i><span id="game-file-label">Select HTML File</span>
+            </button>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; color: #ccc; margin-bottom: 8px; font-weight: 500;">Game Icon (PNG/JPG):</label>
+            <input type="file" id="icon-file-input" accept="image/*" style="display: none;">
+            <button onclick="document.getElementById('icon-file-input').click();" class="btn-outline" style="width: 100%; border: 1px solid rgba(0,230,118,0.5); padding: 12px; text-align: left; background: rgba(0,0,0,0.2);">
+                <i class="fas fa-image" style="margin-right: 8px;"></i><span id="icon-file-label">Select Icon Image</span>
+            </button>
+            <div id="icon-preview" style="width: 70px; height: 70px; border: 1px solid rgba(0,230,118,0.3); border-radius: 8px; display: none; background: rgba(0,0,0,0.5); margin-top: 12px;"></div>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 25px;">
+            <button id="add-game-submit-btn" class="btn-glow" style="flex: 1; padding: 12px;">Add Game</button>
+            <button onclick="resetGameModal(); document.getElementById('add-game-modal').classList.add('hidden');" class="btn-outline" style="flex: 1; border: 1px solid #555; padding: 12px;">Cancel</button>
+        </div>
     </div>
 
     <!-- Fullscreen Game Modal -->
@@ -157,6 +200,99 @@
             </div>
         </div>
     </div>
+
+    <!-- Admin Modal -->
+    <div id="admin-modal" class="hidden glass-panel centered-panel" style="max-width: 700px; max-height: 85vh; overflow-y: auto;">
+        <h2 style="color: var(--primary); margin-top: 0;">Admin Dashboard</h2>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 25px;">
+            <div style="background: rgba(0, 230, 118, 0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 1.8rem; font-weight: 700; color: var(--primary);" id="admin-user-count">0</div>
+                <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Total Users</div>
+            </div>
+            <div style="background: rgba(41, 121, 255, 0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 1.8rem; font-weight: 700; color: var(--secondary);" id="admin-online-count">0</div>
+                <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Online</div>
+            </div>
+            <div style="background: rgba(255, 71, 87, 0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 1.8rem; font-weight: 700; color: var(--danger);" id="admin-message-count">0</div>
+                <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Messages</div>
+            </div>
+            <div style="background: rgba(255, 193, 7, 0.1); padding: 15px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 1.8rem; font-weight: 700; color: #ffc107;" id="admin-deleted-count">0</div>
+                <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Deleted</div>
+            </div>
+        </div>
+
+        <h3 style="color: white; margin: 20px 0 10px 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">Registered Users</h3>
+        <ul id="admin-users-list" style="list-style: none; padding: 0; margin: 0; max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; margin-bottom: 15px;">
+        </ul>
+
+        <h3 style="color: white; margin: 20px 0 10px 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">Recent Messages</h3>
+        <ul id="admin-messages-list" style="list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; margin-bottom: 15px; color: #ccc; font-size: 0.9rem;">
+        </ul>
+
+        <h3 style="color: white; margin: 20px 0 10px 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">Deleted Messages</h3>
+        <ul id="admin-deleted-messages-list" style="list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto; background: rgba(255,71,87,0.08); padding: 10px; border-radius: 10px; margin-bottom: 15px; color: #ccc; font-size: 0.9rem; border: 1px solid rgba(255,71,87,0.2);">
+        </ul>
+
+        <div style="display: flex; gap: 10px; margin-top:20px;">
+            <button onclick="clearAllMessages()" class="btn-danger" style="flex: 1;">Clear All Messages</button>
+            <button onclick="toggleAdminPanel()" class="btn-outline" style="flex: 1; border: 1px solid #555;">Close</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden glass-panel centered-panel" style="max-width: 500px;">
+        <h2 style="color: var(--primary); margin-top: 0; text-align: center;">Edit Profile</h2>
+        <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 20px; text-align: center;">Update your digital persona.</p>
+        
+        <div style="text-align: center; margin-bottom: 25px;">
+            <img id="profile-pic-preview" src="" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; margin-bottom: 15px;">
+            <div style="color: #ccc; font-size: 0.9rem;"><i class="fas fa-circle" style="color: var(--primary);"></i> <span id="current-username-display">Loading...</span></div>
+        </div>
+        
+        <input type="text" id="set-new-username" placeholder="New Username" style="margin-bottom: 12px;">
+        <input type="text" id="set-new-pfp" placeholder="New Avatar URL" style="margin-bottom: 12px;">
+        <input type="password" id="set-new-password" placeholder="New Password" style="margin-bottom: 12px;">
+        
+        <div style="margin: 20px 0; padding: 15px; background: rgba(0,230,118,0.05); border-radius: 8px; border: 1px solid rgba(0,230,118,0.2);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; color: #ccc;">
+                <label for="sound-toggle" style="cursor: pointer; display: flex; align-items: center; gap: 8px; flex: 1;">
+                    <input type="checkbox" id="sound-toggle" style="cursor: pointer;">
+                    <span><i class="fas fa-volume-up"></i> Sound Notifications</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 6px;">Panic Button Link:</label>
+                <input type="text" id="panic-link" placeholder="e.g., https://google.com" style="margin-bottom: 8px;">
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 6px;">Panic Shortcut:</label>
+                <input type="text" id="panic-shortcut" placeholder="e.g., Ctrl+Shift+P" style="margin-bottom: 8px;">
+                <small style="color:#777;">Format: modifiers+Key (e.g. Ctrl+Shift+P or Escape)</small>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 6px;">Cloak Tab Title:</label>
+                <input type="text" id="cloak-title" placeholder="e.g., Google Docs" style="margin-bottom: 8px;">
+            </div>
+            <div style="margin-bottom: 0;">
+                <label style="display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 6px;">Cloak Tab Icon:</label>
+                <input type="text" id="cloak-icon" placeholder="e.g., https://google.com/favicon.ico" style="margin-bottom: 0;">
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button onclick="saveSettings()" class="btn-glow" style="flex: 1;">Save Changes</button>
+            <button onclick="panicButtonAction()" class="btn-danger" style="flex: 1;"><i class="fas fa-exclamation-triangle"></i> PANIC</button>
+            <button onclick="toggleSettings()" class="btn-outline" style="flex: 1; border: 1px solid #555;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- User Messages Modal -->
+    <div id="user-messages-modal" class="hidden glass-panel centered-panel" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="particles.js"></script>
     <script src="script.js"></script>
@@ -583,6 +719,8 @@
         socket.on('adminActionResponse', (data) => {
             if (data.success) {
                 showNotification(data.message, 'success');
+                // Refresh games list after any admin action
+                setTimeout(() => fetchGames(), 500);
             } else {
                 showNotification(data.message, 'error');
             }

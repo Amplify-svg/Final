@@ -9,6 +9,16 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Force chat page layout overrides to apply immediately */
+        body#page-chat { height: 100vh; overflow: hidden; }
+        body#page-chat .app-container { height: 100vh; overflow: hidden; max-width: none; width: 100vw; padding-left: 28px; padding-right:28px; }
+        body#page-chat .chat-layout { display:flex; gap:28px; flex:1 1 auto; min-height:0; overflow:hidden; }
+        body#page-chat .chat-sidebar { width: 320px; flex:0 0 320px; }
+        body#page-chat .chat-main { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden; }
+        #messages { overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:12px; }
+        #chat-form { flex:0 0 auto; display:flex; gap:10px; }
+    </style>
 </head>
 <body id="page-chat">
     <canvas id="particleCanvas"></canvas>
@@ -69,9 +79,9 @@
                     </div>
                 </div>
                 
-                <div id="typing-indicator" style="height: 20px; font-size: 0.8rem; color: var(--primary); margin-left: 10px;"></div>
+                <div id="typing-indicator" style="height: 20px; font-size: 0.8rem; color: var(--primary); margin-left: 10px; flex-shrink: 0;"></div>
                 
-                <form id="chat-form">
+                <form id="chat-form" style="margin-top: auto;">
                     <input id="msg-input" type="text" placeholder="Type a message..." autocomplete="off" />
                     <button id="send-btn" type="submit"><i class="fas fa-paper-plane"></i></button>
                 </form>
@@ -159,13 +169,8 @@
         <ul id="admin-deleted-messages-list" style="list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto; background: rgba(255,71,87,0.08); padding: 10px; border-radius: 10px; margin-bottom: 15px; color: #ccc; font-size: 0.9rem; border: 1px solid rgba(255,71,87,0.2);">
         </ul>
 
-        <div style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1);">
-            <h3 style="color:#fff; font-size:0.95rem;">Upload Game HTML</h3>
-            <input type="text" id="upload-game-filename" placeholder="filename.html" style="width:100%; margin-bottom:8px;">
-            <textarea id="upload-game-content" placeholder="Paste HTML here" style="width:100%; height:120px;"></textarea>
-            <button id="upload-game-btn" class="btn-glow" style="margin-top:8px; width:100%;">Upload</button>
-        </div>
         <div style="display: flex; gap: 10px; margin-top:20px;">
+            <button onclick="window.location.href='games.html'" class="btn-glow" style="flex: 1;"><i class="fas fa-plus"></i> Add Games</button>
             <button onclick="clearAllMessages()" class="btn-danger" style="flex: 1;">Clear All Messages</button>
             <button onclick="toggleAdminPanel()" class="btn-outline" style="flex: 1; border: 1px solid #555;">Close</button>
         </div>

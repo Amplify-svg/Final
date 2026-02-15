@@ -146,72 +146,128 @@ window.addEventListener('beforeunload', function (e) {
 // helper to setup game upload button (if present on page)
 function setupGameUpload() {
     const btn = document.getElementById('upload-game-btn');
-    const fileInput = document.getElementById('upload-game-file');
-    if (!btn || !fileInput) return;
+    if (!btn) return;
     
-    btn.onclick = () => {
-        const file = fileInput.files[0];
-        if (!file) {
-            alert('Select a file first');
-            return;
-        }
-        if (!file.name.toLowerCase().endsWith('.html')) {
-            alert('Please select an HTML file');
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const content = e.target.result;
-            if (content.length > 5000000) {
-                alert('File too large (max 5MB)');
-                return;
-            }
-            socket.emit('adminUploadGame', { filename: file.name, content });
-            fileInput.value = '';
-            showNotification('Game uploading...', 'info');
-        };
-        reader.readAsText(file);
-    };
-    
-    // Allow drag and drop
-    const dropZone = document.getElementById('game-upload-zone');
-    if (dropZone) {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, preventDefaults, false);
-        });
-        
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => {
-                dropZone.style.backgroundColor = 'rgba(0, 230, 118, 0.1)';
-                dropZone.style.borderColor = 'var(--primary)';
-            }, false);
-        });
-        
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => {
-                dropZone.style.backgroundColor = '';
-                dropZone.style.borderColor = '';
-            }, false);
-        });
-        
-        dropZone.addEventListener('drop', (e) => {
-            const file = e.dataTransfer.files[0];
-            if (file && file.name.toLowerCase().endsWith('.html')) {
-                fileInput.files = e.dataTransfer.files;
-                btn.click();
-            } else {
-                alert('Please drop an HTML file');
-            }
-        }, false);
-    }
+    // Button now opens the modal - click handler is inline in HTML
+    // No additional setup needed
 }
 // call once now in case elements exist
 setupGameUpload();
+
+// Setup single HTML file upload with new modal
+function setupSingleHtmlUpload() {
+    const gameFileInput = document.getElementById('game-file-input');
+    const iconFileInput = document.getElementById('icon-file-input');
+    const submitBtn = document.getElementById('add-game-submit-btn');
+    const iconPreview = document.getElementById('icon-preview');
+    
+    if (!gameFileInput || !submitBtn) return;
+    
+    let selectedGameFile = null;
+    let selectedIconFile = null;
+    
+    gameFileInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            selectedGameFile = e.target.files[0];
+            document.getElementById('game-file-label').textContent = selectedGameFile.name;
+        }
+    });
+    
+    iconFileInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            selectedIconFile = e.target.files[0];
+            document.getElementById('icon-file-label').textContent = selectedIconFile.name;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                iconPreview.style.backgroundImage = `url(${evt.target.result})`;
+                iconPreview.style.backgroundSize = 'contain';
+                iconPreview.style.backgroundRepeat = 'no-repeat';
+                iconPreview.style.backgroundPosition = 'center';
+                iconPreview.style.display = 'block';
+            };
+            reader.readAsDataURL(selectedIconFile);
+        }
+    });
+    
+    submitBtn.onclick = async () => {
+        const gameName = document.getElementById('game-name-input').value.trim();
+        
+        if (!gameName) {
+            showNotification('Please enter a game name', 'error');
+            return;
+        }
+        
+        if (!selectedGameFile) {
+            showNotification('Please select an HTML file', 'error');
+            return;
+        }
+        
+        if (!selectedIconFile) {
+            showNotification('Please select an icon image', 'error');
+            return;
+        }
+        
+        try {
+            // Read HTML file
+            const htmlContent = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(selectedGameFile);
+            });
+            
+            if (htmlContent.length > 5000000) {
+                showNotification('HTML file too large (max 5MB)', 'error');
+                return;
+            }
+            
+            // Read icon file as DataURL
+            const iconDataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(selectedIconFile);
+            });
+            
+            // Get the icon file extension
+            const iconExt = selectedIconFile.name.substring(selectedIconFile.name.lastIndexOf('.')) || '.png';
+            const iconFileName = 'icon' + iconExt.toLowerCase();
+            
+            // Emit to server
+            socket.emit('adminUploadGame', {
+                folderName: gameName,
+                files: {
+                    'index.html': htmlContent,
+                    [iconFileName]: iconDataUrl
+                }
+            });
+            
+            showNotification('Uploading game...', 'info');
+            
+            // Close modal and reset after a delay to allow server events to process
+            setTimeout(() => {
+                document.getElementById('add-game-modal').classList.add('hidden');
+                resetGameModal();
+            }, 300);
+        } catch (error) {
+            showNotification('Error processing files: ' + error.message, 'error');
+        }
+    };
+}
+
+// Reset the game upload modal
+window.resetGameModal = function() {
+    document.getElementById('game-name-input').value = '';
+    document.getElementById('game-file-input').value = '';
+    document.getElementById('icon-file-input').value = '';
+    document.getElementById('game-file-label').textContent = 'Select HTML File';
+    document.getElementById('icon-file-label').textContent = 'Select Icon Image';
+    document.getElementById('icon-preview').style.display = 'none';
+}
+
+setupSingleHtmlUpload();
 
 // global listener for new games
 socket.on('newGameUploaded', ({filename}) => {
@@ -404,6 +460,10 @@ if (pageId === 'page-home') {
             // Show/hide admin button
             const adminBtn = document.getElementById('admin-panel-btn');
             if(adminBtn) adminBtn.style.display = data.isAdmin ? 'flex' : 'none';
+            
+            // Show/hide upload game button
+            const uploadGameBtn = document.getElementById('upload-game-btn');
+            if(uploadGameBtn) uploadGameBtn.style.display = data.isAdmin ? 'block' : 'none';
         }
     });
 
@@ -876,6 +936,9 @@ if (pageId === 'page-chat') {
                         <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
                             <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid ${user.isAdmin ? 'var(--danger)' : 'var(--primary)'};" onclick="toggleAdminUser('${user.username}', ${!user.isAdmin})">${user.isAdmin ? 'Remove Admin' : 'Make Admin'}</button>
                             <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid var(--secondary);" onclick="viewUserMessages('${user.username}')">View</button>
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid #ffc107;" onclick="muteUser('${user.username}')">Mute</button>
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid #ff9800;" onclick="banUser('${user.username}')">Ban</button>
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid #ff5722;" onclick="ipBanUser('${user.username}')">IP Ban</button>
                             <button class="btn-danger" style="padding: 4px 10px; font-size: 0.7rem;" onclick="deleteAdminUserAll('${user.username}')">Delete All</button>
                         </div>
                     </div>
@@ -896,7 +959,9 @@ if (pageId === 'page-chat') {
                 recentMsgs.forEach(msg => {
                     const li = document.createElement('li');
                     const time = new Date(msg.timestamp).toLocaleTimeString();
-                    li.innerHTML = `<span style="font-weight: 600;">${msg.user}</span> <span style="color: #999;">${time}</span><br/><span style="font-size: 0.85rem;">"${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}"</span>`;
+                    // Add admin delete button per message
+                    const deleteBtn = currentUser && currentUser.isAdmin ? ` <button class="btn-outline" style="padding:4px 8px; font-size:0.8rem; margin-left:8px;" onclick="adminDeleteMsg('${msg.id}')">Delete</button>` : '';
+                    li.innerHTML = `<span style="font-weight: 600;">${msg.user}</span> <span style="color: #999;">${time}</span>${deleteBtn}<br/><span style="font-size: 0.85rem;">"${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}"</span>`;
                     li.style.marginBottom = '10px';
                     li.style.paddingBottom = '10px';
                     li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
