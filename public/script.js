@@ -1152,19 +1152,99 @@ if (pageId === 'page-call') {
                 li.style.marginBottom = '12px';
                 li.style.paddingBottom = '12px';
                 li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
-                li.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 10px;">
-                        <div style="flex: 1;">
-                            <span><i class="fas fa-user"></i> <strong>${user.username}</strong>${adminBadge}</span>
-                            <div style="font-size: 0.8rem; color: #999; margin-top: 4px;">Messages: ${user.messageCount}</div>
-                        </div>
-                        <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
-                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid ${user.isAdmin ? 'var(--danger)' : 'var(--primary)'};" onclick="toggleAdminUser('${user.username}', ${!user.isAdmin})">${user.isAdmin ? 'Remove Admin' : 'Make Admin'}</button>
-                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid var(--secondary);" onclick="viewUserMessages('${user.username}')">View</button>
-                            <button class="btn-danger" style="padding: 4px 10px; font-size: 0.7rem;" onclick="deleteAdminUserAll('${user.username}')">Delete All</button>
-                        </div>
-                    </div>
-                `;
+
+                const left = document.createElement('div');
+                left.style.flex = '1';
+                left.innerHTML = `<span><i class="fas fa-user"></i> <strong>${user.username}</strong>${adminBadge}</span>`;
+                const meta = document.createElement('div');
+                meta.style.fontSize = '0.8rem';
+                meta.style.color = '#999';
+                meta.style.marginTop = '4px';
+                meta.innerText = `Messages: ${user.messageCount}`;
+                left.appendChild(meta);
+
+                const actions = document.createElement('div');
+                actions.style.display = 'flex';
+                actions.style.gap = '6px';
+                actions.style.flexWrap = 'wrap';
+                actions.style.justifyContent = 'flex-end';
+
+                // Make Admin / Remove Admin
+                const adminBtn = document.createElement('button');
+                adminBtn.className = 'btn-outline';
+                adminBtn.style.padding = '4px 10px';
+                adminBtn.style.fontSize = '0.7rem';
+                adminBtn.style.border = `1px solid ${user.isAdmin ? 'var(--danger)' : 'var(--primary)'}`;
+                adminBtn.innerText = user.isAdmin ? 'Remove Admin' : 'Make Admin';
+                adminBtn.onclick = () => { if(confirm(`${user.isAdmin ? 'Demote' : 'Promote'} ${user.username}?`)) socket.emit('adminMakeAdmin', { targetUsername: user.username, makeAdmin: !user.isAdmin }); };
+                actions.appendChild(adminBtn);
+
+                // View messages
+                const viewBtn = document.createElement('button');
+                viewBtn.className = 'btn-outline';
+                viewBtn.style.padding = '4px 10px';
+                viewBtn.style.fontSize = '0.7rem';
+                viewBtn.style.border = '1px solid var(--secondary)';
+                viewBtn.innerText = 'View';
+                viewBtn.onclick = () => viewUserMessages(user.username);
+                actions.appendChild(viewBtn);
+
+                // Don't allow admin actions on yourself
+                const isMe = currentUser && currentUser.username === user.username;
+                if (!isMe) {
+                    // Mute
+                    const muteBtn = document.createElement('button');
+                    muteBtn.className = 'btn-outline';
+                    muteBtn.style.padding = '4px 10px';
+                    muteBtn.style.fontSize = '0.7rem';
+                    muteBtn.style.border = '1px solid #ffc107';
+                    muteBtn.innerText = 'Mute';
+                    muteBtn.onclick = () => {
+                        const minutes = prompt('Mute for how many minutes?', '5');
+                        if (minutes) socket.emit('adminMuteUser', { targetUsername: user.username, duration: parseInt(minutes) * 60000 });
+                    };
+                    actions.appendChild(muteBtn);
+
+                    // Ban
+                    const banBtn = document.createElement('button');
+                    banBtn.className = 'btn-outline';
+                    banBtn.style.padding = '4px 10px';
+                    banBtn.style.fontSize = '0.7rem';
+                    banBtn.style.border = '1px solid #ff9800';
+                    banBtn.innerText = 'Ban';
+                    banBtn.onclick = () => { if (confirm(`Ban ${user.username}? They won't be able to login.`)) socket.emit('adminBanUser', { targetUsername: user.username }); };
+                    actions.appendChild(banBtn);
+
+                    // IP Ban
+                    const ipBanBtn = document.createElement('button');
+                    ipBanBtn.className = 'btn-outline';
+                    ipBanBtn.style.padding = '4px 10px';
+                    ipBanBtn.style.fontSize = '0.7rem';
+                    ipBanBtn.style.border = '1px solid #ff5722';
+                    ipBanBtn.innerText = 'IP Ban';
+                    ipBanBtn.onclick = () => { if (confirm(`IP Ban ${user.username}? Their entire IP will be blocked.`)) socket.emit('adminIPBan', { targetUsername: user.username }); };
+                    actions.appendChild(ipBanBtn);
+                }
+
+                // Delete All (account/messages)
+                const delBtn = document.createElement('button');
+                delBtn.className = 'btn-danger';
+                delBtn.style.padding = '4px 10px';
+                delBtn.style.fontSize = '0.7rem';
+                delBtn.innerText = 'Delete All';
+                delBtn.onclick = () => { if (confirm(`DELETE ALL data for ${user.username}? This cannot be undone!`)) socket.emit('adminDeleteUserData', { targetUsername: user.username }); };
+                actions.appendChild(delBtn);
+
+                const container = document.createElement('div');
+                container.style.display = 'flex';
+                container.style.justifyContent = 'space-between';
+                container.style.alignItems = 'flex-start';
+                container.style.width = '100%';
+                container.style.gap = '10px';
+                container.appendChild(left);
+                container.appendChild(actions);
+
+                li.appendChild(container);
                 usersList.appendChild(li);
             });
         }

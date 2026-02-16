@@ -194,10 +194,11 @@
                     </div>
                 </div>
                 <div id="floating-chat-messages" class="floating-chat-messages"></div>
-                <div class="floating-chat-input">
-                    <input type="text" id="floating-chat-input" placeholder="Type message..." onkeypress="handleFloatingChatInput(event)">
-                </div>
-            </div>
+                    <div id="floating-chat-messages" class="floating-chat-messages"></div>
+                    <iframe id="floating-chat-iframe" style="display:none; width:100%; height:100%; border:0; border-radius:6px; background:#0a0a0a;" sandbox="allow-same-origin allow-scripts allow-forms"></iframe>
+                    <div class="floating-chat-input" id="floating-chat-input-wrap">
+                        <input type="text" id="floating-chat-input" placeholder="Type message..." onkeypress="handleFloatingChatInput(event)">
+                    </div>
         </div>
     </div>
 
@@ -291,6 +292,12 @@
 
     <!-- User Messages Modal -->
     <div id="user-messages-modal" class="hidden glass-panel centered-panel" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
+    </div>
+
+    <!-- Embedded chat: shows the full chat UI inside Games page -->
+    <div id="embedded-chat-container" style="max-width: 1100px; margin: 20px auto;">
+        <h3 style="color: var(--primary); margin: 0 0 8px 0;">Chat (embedded)</h3>
+        <iframe id="embedded-chat-iframe" src="chat.html" style="width:100%; height:420px; border:1px solid rgba(255,255,255,0.06); border-radius:8px; background: #000;"></iframe>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -414,10 +421,22 @@
             // prevent body scrolling while in fullscreen
             document.body.style.overflow = 'hidden';
             
-            // Reset chat and show it
-            document.getElementById('floating-chat').classList.remove('minimized');
-            document.getElementById('floating-chat').style.display = 'flex';
-            document.getElementById('floating-chat-messages').innerHTML = '';
+                // Reset chat and show it; by default show the full chat page inside the floating iframe
+                const floatingChat = document.getElementById('floating-chat');
+                if (floatingChat) {
+                    floatingChat.classList.remove('minimized');
+                    floatingChat.style.display = 'flex';
+                }
+                const floatIframe = document.getElementById('floating-chat-iframe');
+                const floatMsgs = document.getElementById('floating-chat-messages');
+                const floatInputWrap = document.getElementById('floating-chat-input-wrap');
+                // Hide simple messages and input when using embedded chat iframe
+                if (floatMsgs) floatMsgs.style.display = 'none';
+                if (floatInputWrap) floatInputWrap.style.display = 'none';
+                if (floatIframe) {
+                    floatIframe.src = 'chat.html';
+                    floatIframe.style.display = 'block';
+                }
             
             // Add system message to chat
             addChatMessage(`Game "${folderName}" started`, 'system');
@@ -428,8 +447,17 @@
             const iframe = document.getElementById('fullscreen-iframe');
             modal.classList.remove('active');
             iframe.src = '';
-            document.getElementById('floating-chat-messages').innerHTML = '';
-            document.getElementById('floating-chat').style.display = 'none';
+                // hide embedded chat iframe and restore floating chat UI
+                const floatIframe2 = document.getElementById('floating-chat-iframe');
+                if (floatIframe2) {
+                    floatIframe2.src = '';
+                    floatIframe2.style.display = 'none';
+                }
+                const floatMsgs2 = document.getElementById('floating-chat-messages');
+                const floatInputWrap2 = document.getElementById('floating-chat-input-wrap');
+                if (floatMsgs2) { floatMsgs2.innerHTML = ''; floatMsgs2.style.display = 'flex'; }
+                if (floatInputWrap2) floatInputWrap2.style.display = 'block';
+                document.getElementById('floating-chat').style.display = 'none';
             // restore body scrolling and previous scroll position
             document.body.style.overflow = '';
             try { window.scrollTo({ top: _gamesSavedScrollY, behavior: 'auto' }); } catch(e) { window.scrollTo(0, _gamesSavedScrollY); }
