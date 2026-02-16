@@ -1474,5 +1474,220 @@ if (pageId === 'page-call') {
     }
 }
 
+// ==========================================
+// --- PAGE: GAMES ---
+// ==========================================
+if (pageId === 'page-games') {
+    // Show/hide buttons on page load based on currentUser.isAdmin
+    const adminBtn = document.getElementById('admin-panel-btn');
+    const uploadBtn = document.getElementById('upload-game-btn');
+    
+    if (currentUser && currentUser.isAdmin) {
+        if(adminBtn) adminBtn.style.display = 'flex';
+        if(uploadBtn) uploadBtn.style.display = 'flex';
+    } else {
+        if(adminBtn) adminBtn.style.display = 'none';
+        if(uploadBtn) uploadBtn.style.display = 'none';
+    }
+    
+    // Listen for login response to update admin status on games page
+    socket.on('loginResponse', (data) => {
+        if(data.success) {
+            currentUser.isAdmin = data.isAdmin || false;
+            localStorage.setItem('chatUser', JSON.stringify(currentUser));
+            
+            // Show/hide admin button
+            const adminBtn = document.getElementById('admin-panel-btn');
+            if(adminBtn) adminBtn.style.display = data.isAdmin ? 'flex' : 'none';
+            
+            // Show/hide upload game button
+            const uploadGameBtn = document.getElementById('upload-game-btn');
+            if(uploadGameBtn) uploadGameBtn.style.display = data.isAdmin ? 'flex' : 'none';
+        }
+    });
+    
+    // Admin panel functionality for games page
+    window.toggleAdminPanel = function() {
+        const modal = document.getElementById('admin-modal');
+        if(!modal) return;
+        
+        if(modal.classList.contains('hidden')) {
+            modal.classList.remove('hidden');
+            socket.emit('getAdminData');
+        } else {
+            modal.classList.add('hidden');
+        }
+    };
+
+    socket.on('adminDataResponse', (data) => {
+        if(!data.success) {
+            showNotification('Admin access denied', 'error');
+            return;
+        }
+        updateAdminPanelData(data);
+    });
+
+    function updateAdminPanelData(data) {
+        const usersList = document.getElementById('admin-users-list');
+        const messagesList = document.getElementById('admin-messages-list');
+        const deletedMsgsList = document.getElementById('admin-deleted-messages-list');
+        const userCountEl = document.getElementById('admin-user-count');
+        const messageCountEl = document.getElementById('admin-message-count');
+        const onlineCountEl = document.getElementById('admin-online-count');
+        const deletedCountEl = document.getElementById('admin-deleted-count');
+
+        if(userCountEl) userCountEl.innerText = data.users.length;
+        if(messageCountEl) messageCountEl.innerText = data.messageCount;
+        if(onlineCountEl) onlineCountEl.innerText = data.onlineUsers.length;
+        if(deletedCountEl) deletedCountEl.innerText = data.deletedMessageCount;
+
+        if(usersList) {
+            usersList.innerHTML = '';
+            data.users.forEach(user => {
+                const li = document.createElement('li');
+                const adminBadge = user.isAdmin ? ' <span style="color: var(--primary); font-weight: 700;">[ADMIN]</span>' : '';
+                li.style.marginBottom = '12px';
+                li.style.paddingBottom = '12px';
+                li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                li.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; gap: 10px;">
+                        <div style="flex: 1;">
+                            <span><i class="fas fa-user"></i> <strong>${user.username}</strong>${adminBadge}</span>
+                            <div style="font-size: 0.8rem; color: #999; margin-top: 4px;">Messages: ${user.messageCount}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid ${user.isAdmin ? 'var(--danger)' : 'var(--primary)'};" onclick="toggleAdminUser('${user.username}', ${!user.isAdmin})">${user.isAdmin ? 'Remove Admin' : 'Make Admin'}</button>
+                            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.7rem; border: 1px solid var(--secondary);" onclick="viewUserMessages('${user.username}')">View</button>
+                            <button class="btn-danger" style="padding: 4px 10px; font-size: 0.7rem;" onclick="deleteAdminUserAll('${user.username}')">Delete All</button>
+                        </div>
+                    </div>
+                `;
+                usersList.appendChild(li);
+            });
+        }
+
+        if(messagesList) {
+            messagesList.innerHTML = '';
+            const recentMsgs = data.totalMessages.slice(-5).reverse();
+            if(recentMsgs.length === 0) {
+                const li = document.createElement('li');
+                li.innerText = 'No messages';
+                li.style.color = '#999';
+                messagesList.appendChild(li);
+            } else {
+                recentMsgs.forEach(msg => {
+                    const li = document.createElement('li');
+                    const time = new Date(msg.timestamp).toLocaleTimeString();
+                    li.innerHTML = `<span style="font-weight: 600;">${msg.user}</span> <span style="color: #999;">${time}</span><br/><span style="font-size: 0.85rem;">"${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}"</span>`;
+                    li.style.marginBottom = '10px';
+                    li.style.paddingBottom = '10px';
+                    li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                    messagesList.appendChild(li);
+                });
+            }
+        }
+
+        if(deletedMsgsList) {
+            deletedMsgsList.innerHTML = '';
+            const recentDeleted = data.deletedMessages.slice(-5).reverse();
+            if(recentDeleted.length === 0) {
+                const li = document.createElement('li');
+                li.innerText = 'No deleted messages';
+                li.style.color = '#999';
+                deletedMsgsList.appendChild(li);
+            } else {
+                recentDeleted.forEach(msg => {
+                    const li = document.createElement('li');
+                    const time = new Date(msg.timestamp).toLocaleTimeString();
+                    const deletedTime = msg.deletedAt ? new Date(msg.deletedAt).toLocaleTimeString() : 'Unknown';
+                    li.innerHTML = `<span style="font-weight: 600;">${msg.user}</span> <span style="color: #d63031;">[DELETED by ${msg.deletedBy}]</span><br/><span style="font-size: 0.8rem; color: #999;">${time} → ${deletedTime}</span><br/><span style="font-size: 0.85rem; opacity: 0.6;">"${msg.text.substring(0, 40)}${msg.text.length > 40 ? '...' : ''}"</span>`;
+                    li.style.marginBottom = '10px';
+                    li.style.paddingBottom = '10px';
+                    li.style.borderBottom = '1px solid rgba(255,71,87,0.2)';
+                    deletedMsgsList.appendChild(li);
+                });
+            }
+        }
+    }
+
+    window.toggleAdminUser = function(username, makeAdmin) {
+        if(confirm(`${makeAdmin ? 'Promote' : 'Demote'} ${username}?`)) {
+            socket.emit('adminMakeAdmin', { targetUsername: username, makeAdmin: makeAdmin });
+        }
+    };
+
+    window.deleteAdminUserAll = function(username) {
+        if(confirm(`DELETE ALL data for ${username}? This includes all messages and account data. This CANNOT be undone!`)) {
+            socket.emit('adminDeleteUserData', { targetUsername: username });
+        }
+    };
+
+    window.viewUserMessages = function(username) {
+        socket.emit('adminGetUserMessages', { targetUsername: username });
+    };
+
+    socket.on('adminUserMessagesResponse', (data) => {
+        if(!data.success) {
+            showNotification('Could not fetch user messages', 'error');
+            return;
+        }
+
+        const userPfp = data.pfp || 'https://i.pravatar.cc/150?u=' + data.username;
+        let content = `<div style="text-align: center; margin-bottom: 20px;">
+            <img src="${userPfp}" alt="${data.username}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); margin-bottom: 10px;">
+            <h3 style="color: var(--primary); margin: 10px 0 0 0;">${data.username}'s Messages</h3>
+        </div>`;
+        content += `<div style="margin-bottom: 15px;"><strong>Active Messages: ${data.messages.length}</strong></div>`;
+        
+        if(data.messages.length > 0) {
+            content += '<div style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; margin-bottom: 15px;">';
+            data.messages.forEach(msg => {
+                const time = new Date(msg.timestamp).toLocaleTimeString();
+                content += `<div style="margin-bottom: 8px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);"><span style="color: #999;">${time}</span><br/><span>"${msg.text}"</span></div>`;
+            });
+            content += '</div>';
+        } else {
+            content += '<div style="color: #999; margin-bottom: 15px;">No active messages</div>';
+        }
+
+        content += `<div style="margin-bottom: 15px;"><strong>Deleted Messages: ${data.deletedMessages.length}</strong></div>`;
+        
+        if(data.deletedMessages.length > 0) {
+            content += '<div style="max-height: 300px; overflow-y: auto; background: rgba(255,71,87,0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,71,87,0.2);">';
+            data.deletedMessages.forEach(msg => {
+                const time = new Date(msg.timestamp).toLocaleTimeString();
+                const deletedTime = new Date(msg.deletedAt).toLocaleTimeString();
+                content += `<div style="margin-bottom: 8px; padding: 8px; border-bottom: 1px solid rgba(255,71,87,0.2);"><span style="color: #d63031;">[DELETED by ${msg.deletedBy}]</span><br/><span style="color: #999;">${time} → ${deletedTime}</span><br/><span>"${msg.text}"</span></div>`;
+            });
+            content += '</div>';
+        } else {
+            content += '<div style="color: #999;">No deleted messages</div>';
+        }
+
+        const modal = document.getElementById('user-messages-modal');
+        if(modal) {
+            modal.innerHTML = content + '<div style="display: flex; gap: 10px; margin-top: 15px;"><button onclick="this.parentElement.parentElement.classList.add(\'hidden\')" class="btn-outline" style="flex: 1;">Close</button></div>';
+            modal.classList.remove('hidden');
+        }
+    });
+
+    window.clearAllMessages = function() {
+        if(confirm('Clear all messages? This cannot be undone.')) {
+            socket.emit('adminClearMessages');
+        }
+    };
+
+    socket.on('adminActionResponse', (data) => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+        } else {
+            showNotification(data.message, 'error');
+        }
+        if(data.success && document.getElementById('admin-modal')?.classList.contains('hidden') === false) {
+            socket.emit('getAdminData');
+        }
+    });
+}
+
 // Apply cloaking on page load
 window.addEventListener('load', applyCloaking);
